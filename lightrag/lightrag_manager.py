@@ -81,7 +81,6 @@ class LightRagManager:
     async def get_rag_instance(self, collection_id) -> LightRAG | None:
         """Get or create a LightRAG instance for the given collection"""
 
-        print(os.path.exists(os.path.join(LightRAGConfig.WORKING_DIR, collection_id)))
         if not os.path.exists(os.path.join(LightRAGConfig.WORKING_DIR, collection_id)):
             return None
         if collection_id not in self.rag_instances:
@@ -247,6 +246,7 @@ class LightRagManager:
 
     async def clear_rag_instance(self, collection_id: str):
         """Clear the LightRAG instance for the given collection"""
+        self.rag_instances.pop(collection_id, None)
         if collection_id in self.rag_instances:
             rag = self.rag_instances[collection_id]
             # Clean up database connections

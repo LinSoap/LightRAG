@@ -6,7 +6,7 @@ import json
 router = APIRouter(tags=["common"])
 
 
-@router.get("/health/{collection_id}")
+@router.get("/health")
 async def get_health(collection_id: str):
     """Get health status for a specific collection"""
     try:

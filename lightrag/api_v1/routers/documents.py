@@ -1,14 +1,12 @@
 import asyncio
 from pathlib import Path
 import shutil
-import traceback
 from typing import Dict, List
 from lightrag.api_v1.schema.document_schema import (
     ClearDocumentsResponse,
     DocStatusResponse,
     DocsStatusesResponse,
     InsertResponse,
-    PipelineStatusResponse,
 )
 from lightrag.api_v1.utils.file import pipeline_enqueue_file, sanitize_filename
 from lightrag.base import DocProcessingStatus, DocStatus
@@ -35,7 +33,7 @@ def create_document_routers() -> APIRouter:
 
     lightrag_manager = LightRagManager()
 
-    @router.get("/:collection_id", response_model=DocsStatusesResponse)
+    @router.get("", response_model=DocsStatusesResponse)
     async def documents(collection_id: str) -> DocsStatusesResponse:
         try:
             statuses = (
@@ -46,8 +44,10 @@ def create_document_routers() -> APIRouter:
             )
 
             rag = await lightrag_manager.get_rag_instance(collection_id)
+            logger.info(f"rag instance for collection {collection_id}: {rag}")
             if rag is None:
-                return {"status": "failed", "detail": "Collection not found"}
+                logger.warning(f"Collection {collection_id} not found")
+                raise HTTPException(status_code=404, detail="Collection not found")
 
             tasks = [rag.get_docs_by_status(status) for status in statuses]
             results: List[Dict[str, DocProcessingStatus]] = await asyncio.gather(*tasks)
@@ -75,11 +75,13 @@ def create_document_routers() -> APIRouter:
                         )
                     )
             return response
+        except HTTPException as e:
+            raise e
         except Exception as e:
-            # logger.exception("Error in documents endpoint: %s", e)
+            logger.exception("Error in documents endpoint: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.post("/upload/:collection_id", response_model=InsertResponse)
+    @router.post("/upload", response_model=InsertResponse)
     async def upload_to_input_dir(
         collection_id: str,
         background_tasks: BackgroundTasks,
@@ -144,7 +146,7 @@ def create_document_routers() -> APIRouter:
         except Exception as e:
             logger.exception("Error indexing file %s: %s", file_path.name, e)
 
-    @router.delete("/:collection_id", response_model=ClearDocumentsResponse)
+    @router.delete("", response_model=ClearDocumentsResponse)
     async def clear_documents(collection_id: str):
         rag = await lightrag_manager.get_rag_instance(collection_id)
         doc_manager = DocumentManager(input_dir="./inputs", workspace=collection_id)
@@ -153,6 +155,7 @@ def create_document_routers() -> APIRouter:
         input_dir = doc_manager.input_dir
 
         try:
+            await lightrag_manager.clear_rag_instance(collection_id)
             if input_dir.exists() and input_dir.is_dir():
                 # Remove all files in the input directory
                 for item in input_dir.iterdir():
