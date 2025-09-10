@@ -49,7 +49,6 @@ from lightrag.api.routers.document_routes import (
 )
 from lightrag.api.routers.query_routes import create_query_routes
 from lightrag.api.routers.graph_routes import create_graph_routes
-from lightrag.api.routers.ollama_api import OllamaAPI
 
 from lightrag.utils import logger, set_verbose_debug
 from lightrag.kg.shared_storage import (
@@ -109,7 +108,7 @@ class LLMConfigCache:
         self.ollama_embedding_options = None
 
         # Only initialize and log OpenAI options when using OpenAI-related bindings
-        if args.llm_binding in ["openai", "azure_openai"]:
+        if args.llm_binding in ["openai"]:
             from lightrag.llm.binding_options import OpenAILLMOptions
 
             self.openai_llm_options = OpenAILLMOptions.options_dict(args)
@@ -156,20 +155,14 @@ def create_app(args):
 
     # Verify that bindings are correctly setup
     if args.llm_binding not in [
-        "lollms",
         "ollama",
         "openai",
-        "azure_openai",
-        "aws_bedrock",
     ]:
         raise Exception("llm binding not supported")
 
     if args.embedding_binding not in [
-        "lollms",
         "ollama",
         "openai",
-        "azure_openai",
-        "aws_bedrock",
         "jina",
     ]:
         raise Exception("embedding binding not supported")
@@ -327,67 +320,17 @@ def create_app(args):
 
         return optimized_openai_alike_model_complete
 
-    def create_optimized_azure_openai_llm_func(
-        config_cache: LLMConfigCache, args, llm_timeout: int
-    ):
-        """Create optimized Azure OpenAI LLM function with pre-processed configuration"""
-
-        async def optimized_azure_openai_model_complete(
-            prompt,
-            system_prompt=None,
-            history_messages=None,
-            keyword_extraction=False,
-            **kwargs,
-        ) -> str:
-            from lightrag.llm.azure_openai import azure_openai_complete_if_cache
-
-            keyword_extraction = kwargs.pop("keyword_extraction", None)
-            if keyword_extraction:
-                kwargs["response_format"] = GPTKeywordExtractionFormat
-            if history_messages is None:
-                history_messages = []
-
-            # Use pre-processed configuration to avoid repeated parsing
-            kwargs["timeout"] = llm_timeout
-            if config_cache.openai_llm_options:
-                kwargs.update(config_cache.openai_llm_options)
-
-            return await azure_openai_complete_if_cache(
-                args.llm_model,
-                prompt,
-                system_prompt=system_prompt,
-                history_messages=history_messages,
-                base_url=args.llm_binding_host,
-                api_key=os.getenv("AZURE_OPENAI_API_KEY", args.llm_binding_api_key),
-                api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
-                **kwargs,
-            )
-
-        return optimized_azure_openai_model_complete
-
     def create_llm_model_func(binding: str):
         """
         Create LLM model function based on binding type.
         Uses optimized functions for OpenAI bindings and lazy import for others.
         """
         try:
-            if binding == "lollms":
-                from lightrag.llm.lollms import lollms_model_complete
-
-                return lollms_model_complete
-            elif binding == "ollama":
+            if binding == "ollama":
                 from lightrag.llm.ollama import ollama_model_complete
 
                 return ollama_model_complete
-            elif binding == "aws_bedrock":
-                return bedrock_model_complete  # Already defined locally
-            elif binding == "azure_openai":
-                # Use optimized function with pre-processed configuration
-                return create_optimized_azure_openai_llm_func(
-                    config_cache, args, llm_timeout
-                )
             else:  # openai and compatible
-                # Use optimized function with pre-processed configuration
                 return create_optimized_openai_llm_func(config_cache, args, llm_timeout)
         except ImportError as e:
             raise Exception(f"Failed to import {binding} LLM binding: {e}")
@@ -421,13 +364,7 @@ def create_app(args):
 
         async def optimized_embedding_function(texts):
             try:
-                if binding == "lollms":
-                    from lightrag.llm.lollms import lollms_embed
-
-                    return await lollms_embed(
-                        texts, embed_model=model, host=host, api_key=api_key
-                    )
-                elif binding == "ollama":
+                if binding == "ollama":
                     from lightrag.llm.ollama import ollama_embed
 
                     # Use pre-processed configuration if available, otherwise fallback to dynamic parsing
@@ -446,14 +383,6 @@ def create_app(args):
                         api_key=api_key,
                         options=ollama_options,
                     )
-                elif binding == "azure_openai":
-                    from lightrag.llm.azure_openai import azure_openai_embed
-
-                    return await azure_openai_embed(texts, model=model, api_key=api_key)
-                elif binding == "aws_bedrock":
-                    from lightrag.llm.bedrock import bedrock_embed
-
-                    return await bedrock_embed(texts, model=model)
                 elif binding == "jina":
                     from lightrag.llm.jina import jina_embed
 
@@ -475,33 +404,6 @@ def create_app(args):
     embedding_timeout = get_env_value(
         "EMBEDDING_TIMEOUT", DEFAULT_EMBEDDING_TIMEOUT, int
     )
-
-    async def bedrock_model_complete(
-        prompt,
-        system_prompt=None,
-        history_messages=None,
-        keyword_extraction=False,
-        **kwargs,
-    ) -> str:
-        # Lazy import
-        from lightrag.llm.bedrock import bedrock_complete_if_cache
-
-        keyword_extraction = kwargs.pop("keyword_extraction", None)
-        if keyword_extraction:
-            kwargs["response_format"] = GPTKeywordExtractionFormat
-        if history_messages is None:
-            history_messages = []
-
-        # Use global temperature for Bedrock
-        kwargs["temperature"] = get_env_value("BEDROCK_LLM_TEMPERATURE", 1.0, float)
-
-        return await bedrock_complete_if_cache(
-            args.llm_model,
-            prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            **kwargs,
-        )
 
     # Create embedding function with optimized configuration
     embedding_func = EmbeddingFunc(
@@ -630,10 +532,6 @@ def create_app(args):
     app.include_router(create_query_routes(rag, api_key, args.top_k))
     app.include_router(create_graph_routes(rag, api_key))
 
-    # Add Ollama API routes
-    ollama_api = OllamaAPI(rag, top_k=args.top_k, api_key=api_key)
-    app.include_router(ollama_api.router, prefix="/api")
-
     @app.get("/")
     async def redirect_to_webui():
         """Redirect root path to /webui"""
@@ -745,9 +643,9 @@ def create_app(args):
                     "enable_rerank": rerank_model_func is not None,
                     "rerank_binding": args.rerank_binding,
                     "rerank_model": args.rerank_model if rerank_model_func else None,
-                    "rerank_binding_host": args.rerank_binding_host
-                    if rerank_model_func
-                    else None,
+                    "rerank_binding_host": (
+                        args.rerank_binding_host if rerank_model_func else None
+                    ),
                     # Environment variable status (requested configuration)
                     "summary_language": args.summary_language,
                     "force_llm_summary_on_merge": args.force_llm_summary_on_merge,
