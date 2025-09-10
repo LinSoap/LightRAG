@@ -223,8 +223,6 @@ def create_app(args):
                 task.add_done_callback(app.state.background_tasks.discard)
                 logger.info(f"Process {os.getpid()} auto scan task started at startup.")
 
-            ASCIIColors.green("\nServer is ready to accept connections! 🚀\n")
-
             yield
 
         finally:

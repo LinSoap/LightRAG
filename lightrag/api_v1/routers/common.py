@@ -14,7 +14,7 @@ async def get_health(collection_id: str):
         rag_manager = LightRagManager()
         rag = await rag_manager.get_rag_instance(collection_id=collection_id)
         if rag is None:
-            raise HTTPException(status_code=404, detail="Collection not found")
+            return {"status": "failed", "detail": "Collection not found"}
 
         # Select only valuable health-related attributes
         health_attributes = {

@@ -1,7 +1,8 @@
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from lightrag.api_v1.utils.date import format_datetime
 from lightrag.base import DocStatus
 
 
@@ -138,3 +139,42 @@ class ClearDocumentsResponse(BaseModel):
                 "status": "success",
             }
         }
+
+
+class PipelineStatusResponse(BaseModel):
+    """Response model for pipeline status
+
+    Attributes:
+        autoscanned: Whether auto-scan has started
+        busy: Whether the pipeline is currently busy
+        job_name: Current job name (e.g., indexing files/indexing texts)
+        job_start: Job start time as ISO format string with timezone (optional)
+        docs: Total number of documents to be indexed
+        batchs: Number of batches for processing documents
+        cur_batch: Current processing batch
+        request_pending: Flag for pending request for processing
+        latest_message: Latest message from pipeline processing
+        history_messages: List of history messages
+        update_status: Status of update flags for all namespaces
+    """
+
+    autoscanned: bool = False
+    busy: bool = False
+    job_name: str = "Default Job"
+    job_start: Optional[str] = None
+    docs: int = 0
+    batchs: int = 0
+    cur_batch: int = 0
+    request_pending: bool = False
+    latest_message: str = ""
+    history_messages: Optional[List[str]] = None
+    update_status: Optional[dict] = None
+
+    @field_validator("job_start", mode="before")
+    @classmethod
+    def parse_job_start(cls, value):
+        """Process datetime and return as ISO format string with timezone"""
+        return format_datetime(value)
+
+    class Config:
+        extra = "allow"  # Allow additional fields from the pipeline status

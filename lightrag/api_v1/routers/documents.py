@@ -1,13 +1,14 @@
 import asyncio
-from datetime import datetime
 from pathlib import Path
 import shutil
+import traceback
 from typing import Dict, List
 from lightrag.api_v1.schema.document_schema import (
     ClearDocumentsResponse,
     DocStatusResponse,
     DocsStatusesResponse,
     InsertResponse,
+    PipelineStatusResponse,
 )
 from lightrag.api_v1.utils.file import pipeline_enqueue_file, sanitize_filename
 from lightrag.base import DocProcessingStatus, DocStatus
@@ -16,7 +17,6 @@ from lightrag.lightrag import LightRAG
 from lightrag.lightrag_manager import LightRagManager
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from lightrag.api_v1.utils.date import format_datetime
-import json
 
 import logging
 
@@ -47,7 +47,7 @@ def create_document_routers() -> APIRouter:
 
             rag = await lightrag_manager.get_rag_instance(collection_id)
             if rag is None:
-                raise HTTPException(status_code=404, detail="Collection not found")
+                return {"status": "failed", "detail": "Collection not found"}
 
             tasks = [rag.get_docs_by_status(status) for status in statuses]
             results: List[Dict[str, DocProcessingStatus]] = await asyncio.gather(*tasks)
@@ -146,69 +146,29 @@ def create_document_routers() -> APIRouter:
 
     @router.delete("/:collection_id", response_model=ClearDocumentsResponse)
     async def clear_documents(collection_id: str):
+        rag = await lightrag_manager.get_rag_instance(collection_id)
         doc_manager = DocumentManager(input_dir="./inputs", workspace=collection_id)
 
+        workspace_dir = rag.working_dir + f"/{collection_id}"
         input_dir = doc_manager.input_dir
-        base_dir = doc_manager.workspace
-        print(
-            input_dir,
-        )
 
         try:
-            # Safety check: ensure input_dir is within base_dir to avoid accidental deletions
-            input_resolved = input_dir.resolve()
-            base_resolved = base_dir.resolve()
-            if (
-                base_resolved not in input_resolved.parents
-                and input_resolved != base_resolved
-            ):
-                msg = f"Refusing to delete directory outside of base inputs dir: {input_dir}"
-                logger.error(msg)
-                raise HTTPException(status_code=400, detail=msg)
-
-            if not input_dir.exists():
-                logger.info("Input directory '%s' does not exist", input_dir)
-
-            deleted_paths = []
-
-            # Remove input_dir if it exists
-            if input_dir.exists():
-                await asyncio.to_thread(shutil.rmtree, str(input_dir))
-                deleted_paths.append(str(input_dir))
-
-            # Also attempt to remove base_input_dir/collection_id (same as input_dir for most cases,
-            # but handle explicitly in case of different layout)
-            collection_dir = base_dir / collection_id
-            try:
-                # Only delete if it's within base_dir and not the base_dir itself
-                collection_resolved = collection_dir.resolve()
-                base_resolved = base_dir.resolve()
-                if (
-                    collection_resolved.exists()
-                    and collection_resolved != base_resolved
-                    and base_resolved in collection_resolved.parents
-                ):
-                    # If we already deleted input_dir above and it's the same path, skip
-                    if str(collection_resolved) not in deleted_paths:
-                        await asyncio.to_thread(shutil.rmtree, str(collection_resolved))
-                        deleted_paths.append(str(collection_resolved))
-            except Exception:
-                # ignore resolution errors for collection_dir and continue
-                pass
-
-            if not deleted_paths:
-                message = f"No directories deleted for collection '{collection_id}'"
-                logger.info(message)
-                return ClearDocumentsResponse(status="not_found", message=message)
-
-            message = f"Successfully removed directories: {', '.join(deleted_paths)}"
-            logger.info(message)
-            return ClearDocumentsResponse(status="success", message=message)
-
-        except HTTPException:
-            raise
+            if input_dir.exists() and input_dir.is_dir():
+                # Remove all files in the input directory
+                for item in input_dir.iterdir():
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+            if workspace_dir and Path(workspace_dir).exists():
+                shutil.rmtree(workspace_dir)
+                message = (
+                    f"All documents in collection '{collection_id}' have been cleared."
+                )
         except Exception as e:
-            logger.exception("Error deleting input/workspace directory: %s", e)
+            logger.exception("Error clearing documents: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
+
+        return ClearDocumentsResponse(status="success", message=message)
 
     return router

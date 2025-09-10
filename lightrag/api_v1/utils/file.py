@@ -1,9 +1,8 @@
 from pathlib import Path
 from pdb import pm
 import traceback
-
+from lightrag.utils import logger
 import aiofiles
-from fastapi import logger
 
 from lightrag.lightrag import LightRAG
 

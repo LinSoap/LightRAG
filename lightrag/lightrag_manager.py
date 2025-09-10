@@ -1,5 +1,6 @@
 import logging
 import os
+from dotenv import load_dotenv
 from ascii_colors import ASCIIColors
 from lightrag.kg.shared_storage import (
     finalize_share_data,
@@ -9,6 +10,9 @@ from lightrag.kg.shared_storage import (
 from lightrag.lightrag import LightRAG
 from lightrag.types import GPTKeywordExtractionFormat
 from lightrag.utils import EmbeddingFunc
+
+
+load_dotenv()
 
 
 class LightRAGConfig:
@@ -37,7 +41,7 @@ class LightRAGConfig:
     CHUNK_OVERLAP_SIZE = 100
     SUMMARY_CONTEXT_SIZE = 12000
     SUMMARY_MAX_TOKENS = 1200
-    MAX_ASYNC = 20
+    MAX_ASYNC = 4
     SUMMARY_LANGUAGE = "Simplified Chinese"
     ENTITY_TYPES = '["Organization", "Person", "Location", "Event", "Technology", "Equipment", "Product", "Document", "Category"]'
 
@@ -54,7 +58,7 @@ class LLMConfig:
 class EmbeddingConfig:
     """Centralized configuration for Embedding"""
 
-    EMBEDDING_BINDING = os.getenv("EMBEDDING_BINDING", "openai")  # openai, ollama, jina
+    EMBEDDING_BINDING = os.getenv("EMBEDDING_BINDING", "openai")
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None)
     EMBEDDING_BINDING_HOST = os.getenv("EMBEDDING_BINDING_HOST", None)
     EMBEDDING_BINDING_API_KEY = os.getenv("EMBEDDING_BINDING_API_KEY", None)
@@ -233,7 +237,6 @@ class LightRagManager:
             await initialize_pipeline_status()
             await rag.check_and_migrate_data()
             pipeline_status = await get_namespace_data("pipeline_status")
-            ASCIIColors.green("\nServer is ready to accept connections! 🚀\n")
             return rag
 
         except Exception as e:
