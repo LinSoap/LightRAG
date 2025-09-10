@@ -1,5 +1,11 @@
 import logging
 import os
+from ascii_colors import ASCIIColors
+from lightrag.kg.shared_storage import (
+    finalize_share_data,
+    get_namespace_data,
+    initialize_pipeline_status,
+)
 from lightrag.lightrag import LightRAG
 from lightrag.types import GPTKeywordExtractionFormat
 from lightrag.utils import EmbeddingFunc
@@ -68,8 +74,12 @@ class LightRagManager:
         self.logger = logging.getLogger("lightrag")
         self.rag_instances = {}
 
-    async def get_rag_instance(self, collection_id) -> LightRAG:
+    async def get_rag_instance(self, collection_id) -> LightRAG | None:
         """Get or create a LightRAG instance for the given collection"""
+
+        print(os.path.exists(os.path.join(LightRAGConfig.WORKING_DIR, collection_id)))
+        if not os.path.exists(os.path.join(LightRAGConfig.WORKING_DIR, collection_id)):
+            return None
         if collection_id not in self.rag_instances:
             self.rag_instances[collection_id] = await self.create_lightrag_instance(
                 collection_id
@@ -220,6 +230,10 @@ class LightRagManager:
             )
 
             await rag.initialize_storages()
+            await initialize_pipeline_status()
+            await rag.check_and_migrate_data()
+            pipeline_status = await get_namespace_data("pipeline_status")
+            ASCIIColors.green("\nServer is ready to accept connections! 🚀\n")
             return rag
 
         except Exception as e:
@@ -227,3 +241,11 @@ class LightRagManager:
                 f"Failed to create LightRAG instance for collection '{collection_id}': {str(e)}"
             )
             raise LightRAGError(f"Failed to create LightRAG instance: {str(e)}") from e
+
+    async def clear_rag_instance(self, collection_id: str):
+        """Clear the LightRAG instance for the given collection"""
+        if collection_id in self.rag_instances:
+            rag = self.rag_instances[collection_id]
+            # Clean up database connections
+            await rag.finalize_storages()
+            finalize_share_data()

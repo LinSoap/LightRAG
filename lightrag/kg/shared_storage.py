@@ -372,9 +372,15 @@ def _perform_lock_cleanup(
 
             # Log cleanup results
             next_cleanup_in = max(
-                (new_earliest_time + CLEANUP_KEYED_LOCKS_AFTER_SECONDS - current_time)
-                if new_earliest_time
-                else float("inf"),
+                (
+                    (
+                        new_earliest_time
+                        + CLEANUP_KEYED_LOCKS_AFTER_SECONDS
+                        - current_time
+                    )
+                    if new_earliest_time
+                    else float("inf")
+                ),
                 MIN_CLEANUP_INTERVAL_SECONDS,
             )
 
@@ -504,15 +510,15 @@ class KeyedUnifiedLock:
     def __init__(self, *, default_enable_logging: bool = True) -> None:
         self._default_enable_logging = default_enable_logging
         self._async_lock: Dict[str, asyncio.Lock] = {}  # local keyed locks
-        self._async_lock_count: Dict[
-            str, int
-        ] = {}  # local keyed locks referenced count
-        self._async_lock_cleanup_data: Dict[
-            str, time.time
-        ] = {}  # local keyed locks timeout
-        self._mp_locks: Dict[
-            str, mp.synchronize.Lock
-        ] = {}  # multi-process lock proxies
+        self._async_lock_count: Dict[str, int] = (
+            {}
+        )  # local keyed locks referenced count
+        self._async_lock_cleanup_data: Dict[str, time.time] = (
+            {}
+        )  # local keyed locks timeout
+        self._mp_locks: Dict[str, mp.synchronize.Lock] = (
+            {}
+        )  # multi-process lock proxies
         self._earliest_async_cleanup_time: Optional[float] = (
             None  # track earliest async cleanup time
         )
@@ -970,27 +976,7 @@ def initialize_share_data(workers: int = 1):
         workers (int): Number of worker processes. If 1, single-process mode is used.
                       If > 1, multi-process mode with shared memory is used.
     """
-    global \
-        _manager, \
-        _workers, \
-        _is_multiprocess, \
-        _storage_lock, \
-        _lock_registry, \
-        _lock_registry_count, \
-        _lock_cleanup_data, \
-        _registry_guard, \
-        _internal_lock, \
-        _pipeline_status_lock, \
-        _graph_db_lock, \
-        _data_init_lock, \
-        _shared_dicts, \
-        _init_flags, \
-        _initialized, \
-        _update_flags, \
-        _async_locks, \
-        _storage_keyed_lock, \
-        _earliest_mp_cleanup_time, \
-        _last_mp_cleanup_time
+    global _manager, _workers, _is_multiprocess, _storage_lock, _lock_registry, _lock_registry_count, _lock_cleanup_data, _registry_guard, _internal_lock, _pipeline_status_lock, _graph_db_lock, _data_init_lock, _shared_dicts, _init_flags, _initialized, _update_flags, _async_locks, _storage_keyed_lock, _earliest_mp_cleanup_time, _last_mp_cleanup_time
 
     # Check if already initialized
     if _initialized:
@@ -1238,19 +1224,7 @@ def finalize_share_data():
     In multi-process mode, it shuts down the Manager and releases all shared objects.
     In single-process mode, it simply resets the global variables.
     """
-    global \
-        _manager, \
-        _is_multiprocess, \
-        _storage_lock, \
-        _internal_lock, \
-        _pipeline_status_lock, \
-        _graph_db_lock, \
-        _data_init_lock, \
-        _shared_dicts, \
-        _init_flags, \
-        _initialized, \
-        _update_flags, \
-        _async_locks
+    global _manager, _is_multiprocess, _storage_lock, _internal_lock, _pipeline_status_lock, _graph_db_lock, _data_init_lock, _shared_dicts, _init_flags, _initialized, _update_flags, _async_locks
 
     # Check if already initialized
     if not _initialized:
