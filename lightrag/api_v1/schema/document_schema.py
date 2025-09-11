@@ -178,3 +178,81 @@ class PipelineStatusResponse(BaseModel):
 
     class Config:
         extra = "allow"  # Allow additional fields from the pipeline status
+
+
+class TrackStatusResponse(BaseModel):
+    """Response model for tracking document processing status by track_id
+
+    Attributes:
+        track_id: The tracking ID
+        documents: List of documents associated with this track_id
+        total_count: Total number of documents for this track_id
+        status_summary: Count of documents by status
+    """
+
+    track_id: str = Field(description="The tracking ID")
+    documents: List[DocStatusResponse] = Field(
+        description="List of documents associated with this track_id"
+    )
+    total_count: int = Field(description="Total number of documents for this track_id")
+    status_summary: Dict[str, int] = Field(description="Count of documents by status")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "track_id": "upload_20250729_170612_abc123",
+                "documents": [
+                    {
+                        "id": "doc_123456",
+                        "content_summary": "Research paper on machine learning",
+                        "content_length": 15240,
+                        "status": "PROCESSED",
+                        "created_at": "2025-03-31T12:34:56",
+                        "updated_at": "2025-03-31T12:35:30",
+                        "track_id": "upload_20250729_170612_abc123",
+                        "chunks_count": 12,
+                        "error": None,
+                        "metadata": {"author": "John Doe", "year": 2025},
+                        "file_path": "research_paper.pdf",
+                    }
+                ],
+                "total_count": 1,
+                "status_summary": {"PROCESSED": 1},
+            }
+        }
+
+
+class DeleteDocByIdResponse(BaseModel):
+    """Response model for single document deletion operation."""
+
+    status: Literal["deletion_started", "busy", "not_allowed"] = Field(
+        description="Status of the deletion operation"
+    )
+    message: str = Field(description="Message describing the operation result")
+    doc_id: str = Field(description="The ID of the document to delete")
+
+
+class DeleteDocRequest(BaseModel):
+    doc_ids: List[str] = Field(..., description="The IDs of the documents to delete.")
+    delete_file: bool = Field(
+        default=False,
+        description="Whether to delete the corresponding file in the upload directory.",
+    )
+
+    @field_validator("doc_ids", mode="after")
+    @classmethod
+    def validate_doc_ids(cls, doc_ids: List[str]) -> List[str]:
+        if not doc_ids:
+            raise ValueError("Document IDs list cannot be empty")
+
+        validated_ids = []
+        for doc_id in doc_ids:
+            if not doc_id or not doc_id.strip():
+                raise ValueError("Document ID cannot be empty")
+            validated_ids.append(doc_id.strip())
+
+        # Check for duplicates
+        if len(validated_ids) != len(set(validated_ids)):
+            raise ValueError("Document IDs must be unique")
+
+        return validated_ids
