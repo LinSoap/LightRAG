@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from lightrag.api_v1.routers.documents import create_document_routers
+from lightrag.api_v1.routers.documents_routers import create_document_routers
 from lightrag.api_v1.routers.common import router as common_router
-from lightrag.api_v1.routers.query import create_query_routes
+from lightrag.api_v1.routers.query_routers import create_query_routes
+from lightrag.api_v1.routers.graph_routers import create_graph_routes
 
 app = FastAPI()
 
@@ -19,6 +20,7 @@ app.add_middleware(
 app.include_router(common_router)
 app.include_router(create_document_routers())
 app.include_router(create_query_routes())
+app.include_router(create_graph_routes())
 
 
 def main():

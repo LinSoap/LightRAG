@@ -44,7 +44,6 @@ def create_document_routers() -> APIRouter:
             )
 
             rag = await lightrag_manager.get_rag_instance(collection_id)
-            logger.info(f"rag instance for collection {collection_id}: {rag}")
             if rag is None:
                 logger.warning(f"Collection {collection_id} not found")
                 raise HTTPException(status_code=404, detail="Collection not found")

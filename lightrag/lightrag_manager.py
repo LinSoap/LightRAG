@@ -1,7 +1,6 @@
 import logging
 import os
 from dotenv import load_dotenv
-from ascii_colors import ASCIIColors
 from lightrag.kg.shared_storage import (
     finalize_share_data,
     get_namespace_data,
