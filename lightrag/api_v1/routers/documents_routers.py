@@ -88,6 +88,24 @@ def create_document_routers() -> APIRouter:
             logger.exception("Error in documents endpoint: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
 
+    @router.get("/chunk")
+    async def get_document_chunks(
+        collection_id: str, doc_id: str, limit: int = 10, offset: int = 0
+    ):
+        try:
+            rag = await lightrag_manager.get_rag_instance(collection_id)
+            if rag is None:
+                logger.warning(f"Collection {collection_id} not found")
+                raise HTTPException(status_code=404, detail="Collection not found")
+
+            chunks = await rag.text_chunks.get_by_doc_id(doc_id)
+            return {"doc_id": doc_id, "chunks": chunks}
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            logger.exception("Error in get_document_chunks endpoint: %s", e)
+            raise HTTPException(status_code=500, detail=str(e))
+
     @router.post("/upload", response_model=InsertResponse)
     async def upload_to_input_dir(
         collection_id: str,

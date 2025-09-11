@@ -961,9 +961,11 @@ async def _rebuild_single_entity(
                 "description": final_description,
                 "entity_type": entity_type,
                 "source_id": GRAPH_FIELD_SEP.join(chunk_ids),
-                "file_path": GRAPH_FIELD_SEP.join(file_paths)
-                if file_paths
-                else current_entity.get("file_path", "unknown_source"),
+                "file_path": (
+                    GRAPH_FIELD_SEP.join(file_paths)
+                    if file_paths
+                    else current_entity.get("file_path", "unknown_source")
+                ),
             }
             await knowledge_graph_inst.upsert_node(entity_name, updated_entity_data)
 
@@ -1169,15 +1171,19 @@ async def _rebuild_single_relationship(
     # Update relationship in graph storage
     updated_relationship_data = {
         **current_relationship,
-        "description": final_description
-        if final_description
-        else current_relationship.get("description", ""),
+        "description": (
+            final_description
+            if final_description
+            else current_relationship.get("description", "")
+        ),
         "keywords": combined_keywords,
         "weight": weight,
         "source_id": GRAPH_FIELD_SEP.join(chunk_ids),
-        "file_path": GRAPH_FIELD_SEP.join([fp for fp in file_paths if fp])
-        if file_paths
-        else current_relationship.get("file_path", "unknown_source"),
+        "file_path": (
+            GRAPH_FIELD_SEP.join([fp for fp in file_paths if fp])
+            if file_paths
+            else current_relationship.get("file_path", "unknown_source")
+        ),
     }
     await knowledge_graph_inst.upsert_edge(src, tgt, updated_relationship_data)
 
@@ -1252,7 +1258,9 @@ async def _merge_nodes_then_upsert(
         ).items(),
         key=lambda x: x[1],
         reverse=True,
-    )[0][0]  # Get the entity type with the highest count
+    )[0][
+        0
+    ]  # Get the entity type with the highest count
 
     # merge and deduplicate description
     description_list = list(

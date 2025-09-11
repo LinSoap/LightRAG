@@ -135,6 +135,21 @@ class JsonKVStorage(BaseKVStorage):
                     results.append(None)
             return results
 
+    async def get_by_doc_id(self, doc_id: str):
+        async with self._storage_lock:
+            results = []
+            for id, data in self._data.items():
+                if data.get("full_doc_id") == doc_id:
+                    # Create a copy to avoid modifying the original data
+                    result = {k: v for k, v in data.items()}
+                    # Ensure time fields are present, provide default values for old data
+                    result.setdefault("create_time", 0)
+                    result.setdefault("update_time", 0)
+                    # Ensure _id field contains the clean ID
+                    result["_id"] = id
+                    results.append(result)
+            return results
+
     async def filter_keys(self, keys: set[str]) -> set[str]:
         async with self._storage_lock:
             return set(keys) - set(self._data.keys())
