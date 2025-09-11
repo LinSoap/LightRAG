@@ -17,7 +17,7 @@ router = APIRouter(prefix="/graph", tags=["graph"])
 def create_graph_routes():
     lightrag_manager = LightRagManager()
 
-    @router.get("/label/{collection_id}")
+    @router.get("/label")
     async def get_graph_labels(collection_id: str):
         """
         Get all graph labels
@@ -36,7 +36,7 @@ def create_graph_routes():
             )
 
     @router.get(
-        "/{collection_id}",
+        "/",
     )
     async def get_knowledge_graph(
         collection_id: str,
@@ -77,10 +77,10 @@ def create_graph_routes():
                 status_code=500, detail=f"Error getting knowledge graph: {str(e)}"
             )
 
-    @router.get("/entity/{collection_id}/{name}")
+    @router.get("/entity")
     async def check_entity_exists(
         collection_id: str,
-        name: str = Path(..., description="Entity name to check"),
+        name: str = Query(..., description="Entity name to check"),
     ):
         """
         Check if an entity with the given name exists in the knowledge graph
@@ -102,7 +102,7 @@ def create_graph_routes():
                 status_code=500, detail=f"Error checking entity existence: {str(e)}"
             )
 
-    @router.post("/entity/{collection_id}")
+    @router.post("/entity")
     async def update_entity(collection_id: str, request: EntityUpdateRequest):
         """
         Update an entity's properties in the knowledge graph
@@ -137,7 +137,7 @@ def create_graph_routes():
                 status_code=500, detail=f"Error updating entity: {str(e)}"
             )
 
-    @router.post("/relation/{collection_id}")
+    @router.post("/relation")
     async def update_relation(collection_id: str, request: RelationUpdateRequest):
         """Update a relation's properties in the knowledge graph
 
