@@ -185,6 +185,10 @@ class JsonDocStatusStorage(DocStatusStorage):
 
         await self.index_done_callback()
 
+    async def get_all(self) -> dict[str, Any]:
+        async with self._storage_lock:
+            return self._data.copy() if self._data else {}
+
     async def get_by_id(self, id: str) -> Union[dict[str, Any], None]:
         async with self._storage_lock:
             return self._data.get(id)

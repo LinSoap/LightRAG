@@ -47,56 +47,26 @@ class DocStatusResponse(BaseModel):
         }
 
 
-class DocsStatusesResponse(BaseModel):
-    """Response model for document statuses
-
-    Attributes:
-        statuses: Dictionary mapping document status to lists of document status responses
-    """
-
-    statuses: Dict[DocStatus, List[DocStatusResponse]] = Field(
-        default_factory=dict,
-        description="Dictionary mapping document status to lists of document status responses",
+class DocumentsResponse(BaseModel):
+    id: str = Field(description="Document identifier")
+    collection_id: str = Field(description="Collection identifier")
+    status: str = Field(description="Current processing status")
+    chunks_count: int = Field(
+        description="Number of chunks the document was split into"
     )
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "statuses": {
-                    "PENDING": [
-                        {
-                            "id": "doc_123",
-                            "collection_id": "collection_1",
-                            "content_summary": "Pending document",
-                            "content_length": 5000,
-                            "status": "PENDING",
-                            "created_at": "2025-03-31T10:00:00",
-                            "updated_at": "2025-03-31T10:00:00",
-                            "track_id": "upload_20250331_100000_abc123",
-                            "chunks_count": None,
-                            "error": None,
-                            "metadata": None,
-                            "file_path": "pending_doc.pdf",
-                        }
-                    ],
-                    "PROCESSED": [
-                        {
-                            "id": "doc_456",
-                            "content_summary": "Processed document",
-                            "content_length": 8000,
-                            "status": "PROCESSED",
-                            "created_at": "2025-03-31T09:00:00",
-                            "updated_at": "2025-03-31T09:05:00",
-                            "track_id": "insert_20250331_090000_def456",
-                            "chunks_count": 8,
-                            "error": None,
-                            "metadata": {"author": "John Doe"},
-                            "file_path": "processed_doc.pdf",
-                        }
-                    ],
-                }
-            }
-        }
+    chunks_list: List[str] = Field(description="List of chunk IDs")
+    content_summary: str = Field(description="Summary of document content")
+    content_length: int = Field(description="Length of document content in characters")
+    created_at: str = Field(description="Creation timestamp (ISO format string)")
+    updated_at: str = Field(description="Last update timestamp (ISO format string)")
+    file_path: str = Field(description="Path to the document file")
+    track_id: str = Field(description="Tracking ID for monitoring progress")
+    metadata: Optional[dict[str, Any]] = Field(
+        default=None, description="Additional metadata about the document"
+    )
+    error_msg: Optional[str] = Field(
+        default=None, description="Error message if processing failed"
+    )
 
 
 class InsertResponse(BaseModel):

@@ -8,7 +8,7 @@ from lightrag.api_v1.schema.document_schema import (
     DeleteDocByIdResponse,
     DeleteDocRequest,
     DocStatusResponse,
-    DocsStatusesResponse,
+    DocumentsResponse,
     InsertResponse,
     PipelineStatusResponse,
     TrackStatusResponse,
@@ -51,48 +51,54 @@ def create_document_routers() -> APIRouter:
             logger.exception("Error listing collections: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.get("", response_model=DocsStatusesResponse)
-    async def documents(collection_id: str) -> DocsStatusesResponse:
+    from typing import List
+
+    @router.get("", response_model=List[DocumentsResponse])
+    async def documents(collection_id: str) -> List[DocumentsResponse]:
         try:
-            statuses = (
-                DocStatus.PENDING,
-                DocStatus.PROCESSING,
-                DocStatus.PROCESSED,
-                DocStatus.FAILED,
-            )
-
             rag = await lightrag_manager.get_rag_instance(collection_id)
-            if rag is None:
-                logger.warning(f"Collection {collection_id} not found")
-                raise HTTPException(status_code=404, detail="Collection not found")
 
-            tasks = [rag.get_docs_by_status(status) for status in statuses]
-            results: List[Dict[str, DocProcessingStatus]] = await asyncio.gather(*tasks)
+            # Use the initialized doc_status instance (not the class) and await its async get_all()
+            documents_raw = await rag.doc_status.get_all()
 
-            response = DocsStatusesResponse()
+            doc_list = []
+            for doc_id, doc_data in documents_raw.items():
+                # Normalize dict to match DocProcessingStatus constructor
+                data = doc_data.copy() if isinstance(doc_data, dict) else {}
+                data.pop("content", None)
+                if "file_path" not in data:
+                    data["file_path"] = "no-file-path"
+                if "metadata" not in data:
+                    data["metadata"] = {}
+                if "error_msg" not in data:
+                    data["error_msg"] = None
 
-            for idx, result in enumerate(results):
-                status = statuses[idx]
-                for doc_id, doc_status in result.items():
-                    if status not in response.statuses:
-                        response.statuses[status] = []
-                    response.statuses[status].append(
-                        DocStatusResponse(
-                            id=doc_id,
-                            collection_id=collection_id,
-                            content_summary=doc_status.content_summary,
-                            content_length=doc_status.content_length,
-                            status=doc_status.status,
-                            created_at=format_datetime(doc_status.created_at),
-                            updated_at=format_datetime(doc_status.updated_at),
-                            track_id=doc_status.track_id,
-                            chunks_count=doc_status.chunks_count,
-                            error_msg=doc_status.error_msg,
-                            metadata=doc_status.metadata,
-                            file_path=doc_status.file_path,
-                        )
+                try:
+                    doc_status = DocProcessingStatus(**data)
+                except Exception:
+                    # Fallback: skip malformed entries
+                    logger.exception(f"Malformed doc status for {doc_id}, skipping")
+                    continue
+
+                doc_list.append(
+                    DocumentsResponse(
+                        id=doc_id,
+                        collection_id=collection_id,
+                        status=doc_status.status,
+                        chunks_count=doc_status.chunks_count,
+                        chunks_list=doc_status.chunks_list or [],
+                        content_summary=doc_status.content_summary,
+                        content_length=doc_status.content_length,
+                        created_at=format_datetime(doc_status.created_at),
+                        updated_at=format_datetime(doc_status.updated_at),
+                        file_path=doc_status.file_path,
+                        track_id=doc_status.track_id,
+                        error_msg=doc_status.error_msg,
+                        metadata=doc_status.metadata,
                     )
-            return response
+                )
+            return doc_list
+
         except HTTPException as e:
             raise e
         except Exception as e:
