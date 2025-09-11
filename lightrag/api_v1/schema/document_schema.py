@@ -8,6 +8,7 @@ from lightrag.base import DocStatus
 
 class DocStatusResponse(BaseModel):
     id: str = Field(description="Document identifier")
+    collection_id: str = Field(description="Collection identifier")
     content_summary: str = Field(description="Summary of document content")
     content_length: int = Field(description="Length of document content in characters")
     status: DocStatus = Field(description="Current processing status")
@@ -31,6 +32,7 @@ class DocStatusResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "id": "doc_123456",
+                "collection_id": "collection_1",
                 "content_summary": "Research paper on machine learning",
                 "content_length": 15240,
                 "status": "PROCESSED",
@@ -64,6 +66,7 @@ class DocsStatusesResponse(BaseModel):
                     "PENDING": [
                         {
                             "id": "doc_123",
+                            "collection_id": "collection_1",
                             "content_summary": "Pending document",
                             "content_length": 5000,
                             "status": "PENDING",

@@ -31,7 +31,7 @@ def main():
     uvicorn.run(
         "lightrag.api_v1.main:app",
         host="0.0.0.0",
-        port=8002,
+        port=9621,
         access_log=True,
     )
 

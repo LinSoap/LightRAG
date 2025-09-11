@@ -41,6 +41,16 @@ def create_document_routers() -> APIRouter:
 
     lightrag_manager = LightRagManager()
 
+    @router.get("/collections")
+    async def list_collections():
+        """List all existing collections based on working directory"""
+        try:
+            collections = await lightrag_manager.list_collections()
+            return collections
+        except Exception as e:
+            logger.exception("Error listing collections: %s", e)
+            raise HTTPException(status_code=500, detail=str(e))
+
     @router.get("", response_model=DocsStatusesResponse)
     async def documents(collection_id: str) -> DocsStatusesResponse:
         try:
@@ -69,6 +79,7 @@ def create_document_routers() -> APIRouter:
                     response.statuses[status].append(
                         DocStatusResponse(
                             id=doc_id,
+                            collection_id=collection_id,
                             content_summary=doc_status.content_summary,
                             content_length=doc_status.content_length,
                             status=doc_status.status,

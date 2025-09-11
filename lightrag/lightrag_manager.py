@@ -1,5 +1,7 @@
 import logging
 import os
+import json
+from datetime import datetime
 from dotenv import load_dotenv
 from lightrag.kg.shared_storage import (
     finalize_share_data,
@@ -76,6 +78,37 @@ class LightRagManager:
     def __init__(self):
         self.logger = logging.getLogger("lightrag")
         self.rag_instances = {}
+
+    async def list_collections(self):
+        if not os.path.exists(LightRAGConfig.WORKING_DIR):
+            return []
+
+        collections = [
+            name
+            for name in os.listdir(LightRAGConfig.WORKING_DIR)
+            if os.path.isdir(os.path.join(LightRAGConfig.WORKING_DIR, name))
+        ]
+
+        result = {}
+        for name in collections:
+            status_path = os.path.join(
+                LightRAGConfig.WORKING_DIR, name, "kv_store_doc_status.json"
+            )
+            try:
+                if os.path.exists(status_path):
+                    with open(status_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    result[name] = data
+                else:
+                    result[name] = {}
+            except Exception as e:
+                # keep listing robust: log and return empty dict for this collection
+                self.logger.debug(
+                    f"Failed to read doc status for collection {name}: {e}"
+                )
+                result[name] = {}
+
+        return result
 
     async def get_rag_instance(self, collection_id) -> LightRAG | None:
         """Get or create a LightRAG instance for the given collection"""
