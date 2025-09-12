@@ -1,8 +1,7 @@
-import asyncio
 from pathlib import Path
 import shutil
 import traceback
-from typing import Dict, List
+from typing import List
 from lightrag.api_v1.schema.document_schema import (
     ClearDocumentsResponse,
     DeleteDocByIdResponse,
@@ -40,54 +39,6 @@ def create_document_routers() -> APIRouter:
     router = APIRouter(prefix="/documents", tags=["documents"])
 
     lightrag_manager = LightRagManager()
-
-    from typing import Dict
-
-    @router.get("/collections", response_model=Dict[str, list[DocumentsResponse]])
-    async def list_collections() -> Dict[str, list[DocumentsResponse]]:
-        """List all existing collections based on working directory"""
-        try:
-            raw_collections = await lightrag_manager.list_collections()
-
-            processed: dict = {}
-            for collection_name, docs in raw_collections.items():
-                # docs is expected to be a mapping doc_id -> doc_status_dict
-                docs_list: list = []
-                if isinstance(docs, dict):
-                    for doc_id, doc_data in docs.items():
-                        # doc_data may be nested or missing fields; sanitize
-                        data = doc_data.copy() if isinstance(doc_data, dict) else {}
-                        data.pop("content", None)
-
-                        # Prefer using DocProcessingStatus to normalize fields (same as /documents endpoint)
-                        doc_status = DocProcessingStatus(**data)
-
-                        docs_list.append(
-                            DocumentsResponse(
-                                id=doc_id,
-                                collection_id=collection_name,
-                                status=doc_status.status,
-                                chunks_count=doc_status.chunks_count or 0,
-                                chunks_list=doc_status.chunks_list or [],
-                                content_summary=doc_status.content_summary or "",
-                                content_length=doc_status.content_length or 0,
-                                created_at=format_datetime(doc_status.created_at),
-                                updated_at=format_datetime(doc_status.updated_at),
-                                file_path=doc_status.file_path or "",
-                                track_id=doc_status.track_id or "",
-                                metadata=doc_status.metadata or {},
-                                error_msg=doc_status.error_msg or None,
-                            )
-                        )
-
-                processed[collection_name] = docs_list
-
-            return processed
-        except Exception as e:
-            logger.exception("Error listing collections: %s", e)
-            raise HTTPException(status_code=500, detail=str(e))
-
-    from typing import List
 
     @router.get("", response_model=List[DocumentsResponse])
     async def documents(collection_id: str) -> List[DocumentsResponse]:
@@ -205,34 +156,6 @@ def create_document_routers() -> APIRouter:
         except Exception as e:
             logger.exception("Error uploading file: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
-
-    @router.delete("", response_model=ClearDocumentsResponse)
-    async def clear_documents(collection_id: str):
-        rag = await lightrag_manager.get_rag_instance(collection_id)
-        doc_manager = DocumentManager(input_dir="./inputs", workspace=collection_id)
-
-        workspace_dir = rag.working_dir + f"/{collection_id}"
-        input_dir = doc_manager.input_dir
-
-        try:
-            await lightrag_manager.clear_rag_instance(collection_id)
-            if input_dir.exists() and input_dir.is_dir():
-                # Remove all files in the input directory
-                for item in input_dir.iterdir():
-                    if item.is_file():
-                        item.unlink()
-                    elif item.is_dir():
-                        shutil.rmtree(item)
-            if workspace_dir and Path(workspace_dir).exists():
-                shutil.rmtree(workspace_dir)
-                message = (
-                    f"All documents in collection '{collection_id}' have been cleared."
-                )
-        except Exception as e:
-            logger.exception("Error clearing documents: %s", e)
-            raise HTTPException(status_code=500, detail=str(e))
-
-        return ClearDocumentsResponse(status="success", message=message)
 
     @router.get(
         "/pipeline_status",

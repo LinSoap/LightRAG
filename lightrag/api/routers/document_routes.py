@@ -232,28 +232,6 @@ class InsertResponse(BaseModel):
         }
 
 
-class ClearDocumentsResponse(BaseModel):
-    """Response model for document clearing operation
-
-    Attributes:
-        status: Status of the clear operation
-        message: Detailed message describing the operation result
-    """
-
-    status: Literal["success", "partial_success", "busy", "fail"] = Field(
-        description="Status of the clear operation"
-    )
-    message: str = Field(description="Message describing the operation result")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "status": "success",
-                "message": "All documents cleared successfully. Deleted 15 files.",
-            }
-        }
-
-
 class ClearCacheRequest(BaseModel):
     """Request model for clearing cache
 
