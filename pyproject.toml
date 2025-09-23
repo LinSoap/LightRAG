@@ -54,6 +54,7 @@ api = [
     "openai",
     "pandas>=2.0.0",
     "pipmaster",
+    "pypdf2",
     "pydantic",
     "pypinyin",
     "python-dotenv",
@@ -80,8 +81,7 @@ api = [
 ]
 
 [project.scripts]
-lightrag-server-v1 = "lightrag.api_v1.main:main" 
-lightrag-server = "lightrag.api.lightrag_server:main"
+lightrag-server = "lightrag.api.main:main"
 lightrag-gunicorn = "lightrag.api.run_with_gunicorn:main"
 
 [project.urls]
