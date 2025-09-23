@@ -5,7 +5,6 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from lightrag.api.routers.documents_routers import create_document_routers
-from lightrag.api.routers.common import router as common_router
 from lightrag.api.routers.query_routers import create_query_routes
 from lightrag.api.routers.graph_routers import create_graph_routes
 from lightrag.api.routers.collection_routers import create_collection_routes
@@ -25,10 +24,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 健康检查端点（必须在其他路由之前）
-@app.get("/health")
-async def health_check():
-    """健康检查端点"""
+
+# 系统概览端点（必须在其他路由之前）
+@app.get("/overview")
+async def get_overview():
+    """系统概览端点 - 包含系统状态和collection信息总览"""
     # 执行完整的健康检查
     health_result = await health_checker.check_all_components()
 
@@ -56,33 +56,16 @@ async def health_check():
 
     # 根据状态返回不同的HTTP状态码
     from fastapi import status as http_status
+
     if status_code != 200:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=status_code, detail=health_result)
 
     return health_result
 
 
-@app.get("/health/detailed")
-async def detailed_health_check():
-    """详细健康检查端点"""
-    health_result = await health_checker.check_all_components()
-    health_summary = health_checker.get_health_summary()
-    health_trends = health_checker.get_health_trends(hours=24)
-
-    return {
-        "current_health": health_result,
-        "health_summary": health_summary,
-        "health_trends": health_trends,
-        "version": "1.4.8"
-    }
-
-
-# 移除健康趋势端点，因为在本地服务场景中不必要
-# @app.get("/health/trends")
-# async def health_trends(hours: int = 24):
-#     """健康趋势端点"""
-#     return health_checker.get_health_trends(hours)
+# 移除详细系统概览端点，保持接口简洁
 
 
 @app.get("/service-info")
@@ -90,8 +73,8 @@ async def get_service_info():
     """获取详细的服务信息"""
     return service_manager.get_service_info()
 
+
 # Include the common router
-app.include_router(common_router)
 app.include_router(create_collection_routes())
 app.include_router(create_document_routers())
 app.include_router(create_query_routes())
@@ -103,17 +86,19 @@ def find_free_port(start_port: int = 9621, max_attempts: int = 100) -> int:
     for port in range(start_port, start_port + max_attempts):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                s.bind(('localhost', port))
+                s.bind(("localhost", port))
                 return port
             except OSError:
                 continue
-    raise RuntimeError(f"在 {start_port}-{start_port + max_attempts - 1} 范围内无法找到可用端口")
+    raise RuntimeError(
+        f"在 {start_port}-{start_port + max_attempts - 1} 范围内无法找到可用端口"
+    )
 
 
 def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(
-        description='LightRAG API Server',
+        description="LightRAG API Server",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -123,50 +108,37 @@ def parse_args():
   %(prog)s --workspace my_project         # 指定工作空间
   %(prog)s --port 0                       # 自动选择端口
   %(prog)s                                # 使用默认设置
-        """
+        """,
     )
     parser.add_argument(
-        '--port',
+        "--port",
         type=int,
         default=0,  # 改为默认自动选择端口
-        help='指定端口号 (默认: 0表示自动选择)'
+        help="指定端口号 (默认: 0表示自动选择)",
     )
     parser.add_argument(
-        '--host',
-        default='127.0.0.1',
-        help='绑定地址 (默认: 127.0.0.1)'
+        "--host", default="127.0.0.1", help="绑定地址 (默认: 127.0.0.1)"
     )
     parser.add_argument(
-        '--storage-dir',
-        type=str,
-        help='存储目录路径 (默认: 使用系统默认路径)'
+        "--storage-dir", type=str, help="存储目录路径 (默认: 使用系统默认路径)"
     )
     parser.add_argument(
-        '--workspace',
-        type=str,
-        default='default',
-        help='工作空间名称 (默认: default)'
+        "--workspace", type=str, default="default", help="工作空间名称 (默认: default)"
     )
     parser.add_argument(
-        '--reload',
-        action='store_true',
-        help='启用热重载模式 (仅开发环境使用)'
+        "--reload", action="store_true", help="启用热重载模式 (仅开发环境使用)"
     )
     parser.add_argument(
-        '--log-level',
-        choices=['debug', 'info', 'warning', 'error'],
-        default='info',
-        help='日志级别 (默认: info)'
+        "--log-level",
+        choices=["debug", "info", "warning", "error"],
+        default="info",
+        help="日志级别 (默认: info)",
     )
     parser.add_argument(
-        '--migrate-data',
-        action='store_true',
-        help='从旧目录迁移数据到新目录'
+        "--migrate-data", action="store_true", help="从旧目录迁移数据到新目录"
     )
     parser.add_argument(
-        '--old-storage-dir',
-        type=str,
-        help='旧的存储目录路径 (用于数据迁移)'
+        "--old-storage-dir", type=str, help="旧的存储目录路径 (用于数据迁移)"
     )
     return parser.parse_args()
 
@@ -191,13 +163,13 @@ def setup_path_configuration(args):
     # 处理数据迁移
     if args.migrate_data:
         if args.old_storage_dir:
-            new_storage_dir = config.get_storage_base_dir() or str(PathManager.get_default_storage_dir())
+            new_storage_dir = config.get_storage_base_dir() or str(
+                PathManager.get_default_storage_dir()
+            )
             print(f"🔄 开始数据迁移: {args.old_storage_dir} -> {new_storage_dir}")
 
             success = PathManager.migrate_data(
-                args.old_storage_dir,
-                new_storage_dir,
-                backup=True
+                args.old_storage_dir, new_storage_dir, backup=True
             )
 
             if success:
@@ -209,8 +181,12 @@ def setup_path_configuration(args):
 
     # 确保目录存在
     if config.should_auto_create():
-        storage_base_dir = config.get_storage_base_dir() or PathManager.get_default_storage_dir()
-        working_dir = PathManager.get_working_dir(config.get_workspace(), storage_base_dir)
+        storage_base_dir = (
+            config.get_storage_base_dir() or PathManager.get_default_storage_dir()
+        )
+        working_dir = PathManager.get_working_dir(
+            config.get_workspace(), storage_base_dir
+        )
         PathManager.ensure_directory(working_dir)
         print(f"📂 确保工作目录存在: {working_dir}")
 
@@ -252,7 +228,7 @@ def main():
     # 显示服务信息
     print(f"📍 绑定地址: {args.host}")
     print(f"📖 API文档: http://{args.host}:{port}/docs")
-    print(f"💊 健康检查: http://{args.host}:{port}/health")
+    print(f"💊 系统概览: http://{args.host}:{port}/overview")
     print(f"🛡️  按 Ctrl+C 可优雅关闭服务")
 
     # 设置日志级别
@@ -265,9 +241,9 @@ def main():
             "lightrag.api.main:app",
             host=args.host,
             port=port,
-            access_log=(args.log_level == 'debug'),
+            access_log=(args.log_level == "debug"),
             reload=args.reload,
-            log_level=args.log_level
+            log_level=args.log_level,
         )
     except KeyboardInterrupt:
         print("\n⚠️  收到中断信号，正在关闭服务...")
@@ -283,7 +259,7 @@ def main():
         print(f"   - 运行时间: {service_info.get('uptime', 0):.2f} 秒")
         print(f"   - 总请求数: {service_info.get('total_requests', 0)}")
         print(f"   - 最终状态: {service_info.get('state', 'unknown')}")
-        if service_info.get('error_message'):
+        if service_info.get("error_message"):
             print(f"   - 错误信息: {service_info['error_message']}")
         print("👋 LightRAG 服务已关闭")
 

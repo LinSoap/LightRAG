@@ -85,7 +85,8 @@ class HealthChecker:
                 self.check_llm_health(),
                 self.check_vector_db_health(),
                 self.check_graph_db_health(),
-                self.check_system_resources()
+                self.check_system_resources(),
+                self.get_collections_overview()
             ]
 
             component_results = await asyncio.gather(*component_tasks, return_exceptions=True)
@@ -95,7 +96,7 @@ class HealthChecker:
             total_components = 0
 
             for i, result in enumerate(component_results):
-                component_name = ["storage", "llm", "vector_db", "graph_db", "system_resources"][i]
+                component_name = ["storage", "llm", "vector_db", "graph_db", "system_resources", "collections"][i]
 
                 if isinstance(result, Exception):
                     results["errors"].append(f"{component_name} check failed: {str(result)}")
@@ -591,6 +592,81 @@ class HealthChecker:
             "current_status": "use /health or /health/detailed for current status",
             "note": "Trend analysis is unnecessary for local Electron applications"
         }
+
+    async def get_collections_overview(self) -> ComponentHealth:
+        """获取collection信息总览"""
+        start_time = time.time()
+
+        try:
+            from lightrag.lightrag_manager import LightRagManager
+
+            # 获取collection信息
+            rag_manager = LightRagManager()
+            collections = await rag_manager.list_collections()
+
+            # 统计信息
+            total_collections = len(collections)
+            total_documents = 0
+            total_chunks = 0
+            collection_details = []
+
+            for collection_name, docs in collections.items():
+                if isinstance(docs, dict):
+                    doc_count = len(docs)
+                    total_documents += doc_count
+
+                    # 统计chunks
+                    chunks_count = sum(doc_data.get("chunks_count", 0) for doc_data in docs.values())
+                    total_chunks += chunks_count
+
+                    collection_details.append({
+                        "name": collection_name,
+                        "document_count": doc_count,
+                        "chunks_count": chunks_count,
+                        "status": "active"
+                    })
+                else:
+                    collection_details.append({
+                        "name": collection_name,
+                        "document_count": 0,
+                        "chunks_count": 0,
+                        "status": "empty"
+                    })
+
+            # 确定健康状态
+            status = HealthStatus.HEALTHY
+            message = f"Found {total_collections} collections, {total_documents} documents, {total_chunks} chunks"
+
+            if total_collections == 0:
+                status = HealthStatus.DEGRADED
+                message = "No collections found"
+            elif total_documents == 0:
+                status = HealthStatus.DEGRADED
+                message = f"Found {total_collections} collections but no documents"
+
+            response_time = (time.time() - start_time) * 1000
+
+            return ComponentHealth(
+                name="collections",
+                status=status,
+                message=message,
+                details={
+                    "total_collections": total_collections,
+                    "total_documents": total_documents,
+                    "total_chunks": total_chunks,
+                    "collections": collection_details,
+                    "storage_path": str(PathManager.get_default_storage_dir())
+                },
+                response_time_ms=response_time
+            )
+
+        except Exception as e:
+            return ComponentHealth(
+                name="collections",
+                status=HealthStatus.UNHEALTHY,
+                message=f"Failed to get collections overview: {str(e)}",
+                response_time_ms=(time.time() - start_time) * 1000
+            )
 
 
 # 全局健康检查器实例
