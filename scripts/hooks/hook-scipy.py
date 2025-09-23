@@ -1,0 +1,95 @@
+"""
+PyInstaller hook for scipy
+解决scipy在打包后的导入问题
+"""
+
+import os
+import sys
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+
+# 收集scipy的数据文件
+datas = collect_data_files('scipy')
+
+# 收集scipy的动态链接库
+binaries = collect_dynamic_libs('scipy')
+
+# 确保scipy的内部模块被正确导入
+hiddenimports = [
+    'scipy._lib._ccallback_c',
+    'scipy._lib._testutils',
+    'scipy._lib._fpumode',
+    'scipy._lib.messagestream',
+    'scipy.sparse.csgraph._validation',
+    'scipy.sparse.csgraph._tools',
+    'scipy.sparse.csgraph._shortest_path',
+    'scipy.sparse.csgraph._flow',
+    'scipy.sparse.csgraph._matching',
+    'scipy.sparse.csgraph._reordering',
+    'scipy.sparse.csgraph._min_spanning_tree',
+    'scipy.sparse.csgraph._traversal',
+    'scipy.sparse.csgraph._heapq',
+    'scipy.sparse._sparsetools',
+    'scipy.sparse._csparsetools',
+    'scipy.linalg._fblas',
+    'scipy.linalg._flapack',
+    'scipy.linalg._clapack',
+    'scipy.linalg._cythonized_array_utils',
+    'scipy.linalg._decomp_update',
+    'scipy.linalg._matfuncs_sqrtm_triu',
+    'scipy.linalg._interpolative',
+    'scipy.linalg._solve_toeplitz',
+    'scipy.linalg._procrustes',
+    'scipy.linalg._decomp_cossin',
+    'scipy.fft._pocketfft_internal',
+    'scipy.fft._helpermod',
+    'scipy.fft._realtransforms',
+    'scipy.integrate._odepack',
+    'scipy.integrate._quadpack',
+    'scipy.integrate._vode',
+    'scipy.integrate._dop',
+    'scipy.integrate._lsoda',
+    'scipy.integrate._ddaspk',
+    'scipy.optimize._minpack',
+    'scipy.optimize._moduleTNC',
+    'scipy.optimize._slsqp',
+    'scipy.optimize._zeros',
+    'scipy.optimize._minpack2',
+    'scipy.optimize._trlib',
+    'scipy.optimize._lbfgsb',
+    'scipy.optimize._modn',
+    'scipy.optimize._group_columns',
+    'scipy.optimize._highs._highs_wrapper',
+    'scipy.optimize._highs._highs_constants',
+    'scipy.optimize._highs._highs_utils',
+    'scipy.stats._stats',
+    'scipy.stats._mvn',
+    'scipy.stats._rank',
+    'scipy.stats._stats_py',
+    'scipy.special._ufuncs_cxx',
+    'scipy.special._comb',
+    'scipy.special._specfun',
+    'scipy.special._cephes',
+    'scipy.spatial._ckdtree',
+    'scipy.spatial._qhull',
+    'scipy.spatial._distance_wrap',
+    'scipy.spatial._voronoi',
+    'scipy.interpolate._fitpack',
+    'scipy.interpolate._dfitpack',
+    'scipy.interpolate._interpnd_info',
+    'scipy.interpolate.interpnd',
+    'scipy.signal._peak_finding_utils',
+    'scipy.signal._spectral',
+    'scipy.signal._upfirdn_apply',
+    'scipy.signal._sigtools',
+    'scipy.signal._max_len_seq_inner',
+    'scipy.signal._lfilter',
+    'scipy.signal._filter_design',
+    'scipy.signal._bsplines',
+    'scipy.signal._arraytools',
+    'scipy.signal._sosfilt',
+    'scipy.signal._wavelets',
+    'scipy.ndimage._nd_image',
+    'scipy.ndimage._ni_label',
+    'scipy.ndimage._ni_support',
+    'scipy.ndimage._ctest',
+]
