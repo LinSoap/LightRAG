@@ -14,6 +14,7 @@ import psutil
 from pathlib import Path
 
 from lightrag.api.service_manager import service_manager
+from lightrag.utils.path_manager import PathManager
 
 
 class HealthStatus(Enum):
@@ -152,16 +153,30 @@ class HealthChecker:
             storage_issues = []
 
             # 检查默认存储目录
-            default_storage = Path("./rag_storage")
+            default_storage = PathManager.get_default_storage_dir()
             if not default_storage.exists():
-                storage_issues.append("Default storage directory does not exist")
+                # 首次使用时存储目录不存在是正常的
+                try:
+                    default_storage.mkdir(parents=True, exist_ok=True)
+                    storage_issues.append("Storage directory created (normal for first use)")
+                except PermissionError:
+                    storage_issues.append("Cannot create storage directory - permission denied")
+                except Exception as e:
+                    storage_issues.append(f"Cannot create storage directory: {str(e)}")
             elif not os.access(default_storage, os.W_OK):
                 storage_issues.append("No write permission to storage directory")
 
             # 检查工作目录
-            working_dir = Path(service_manager.get_service_info().get("working_dir", "./rag_storage"))
+            working_dir = Path(service_manager.get_service_info().get("working_dir", str(PathManager.get_default_storage_dir())))
             if not working_dir.exists():
-                storage_issues.append("Working directory does not exist")
+                # 首次使用时工作目录不存在是正常的
+                try:
+                    working_dir.mkdir(parents=True, exist_ok=True)
+                    # 如果是刚刚创建的目录，不算作问题
+                except PermissionError:
+                    storage_issues.append("Cannot create working directory - permission denied")
+                except Exception as e:
+                    storage_issues.append(f"Cannot create working directory: {str(e)}")
             elif not os.access(working_dir, os.W_OK):
                 storage_issues.append("No write permission to working directory")
 
@@ -188,6 +203,10 @@ class HealthChecker:
             if not storage_issues:
                 status = HealthStatus.HEALTHY
                 message = "All storage components are healthy"
+            elif len(storage_issues) == 1 and "normal for first use" in storage_issues[0]:
+                # 只有首次使用创建目录的信息，不算作degraded
+                status = HealthStatus.HEALTHY
+                message = "Storage components are healthy (first use setup completed)"
             elif len(storage_issues) <= 2:
                 status = HealthStatus.DEGRADED
                 message = f"Storage has {len(storage_issues)} minor issues"
@@ -294,7 +313,7 @@ class HealthChecker:
             vector_db_issues = []
 
             # 检查向量数据库存储路径
-            storage_path = Path("./rag_storage")
+            storage_path = PathManager.get_default_storage_dir()
             vector_db_path = storage_path / "vector_db"
 
             if vector_db_path.exists():
@@ -380,7 +399,7 @@ class HealthChecker:
                 graph_db_issues.append(f"Graph database test failed: {str(e)}")
 
             # 检查图数据存储路径
-            storage_path = Path("./rag_storage")
+            storage_path = PathManager.get_default_storage_dir()
             graph_path = storage_path / "graph"
 
             if graph_path.exists():

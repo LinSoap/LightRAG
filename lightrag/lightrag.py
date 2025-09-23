@@ -96,6 +96,7 @@ from .utils import (
     generate_track_id,
     logger,
 )
+from .utils.path_manager import PathManager
 from .types import KnowledgeGraph
 from dotenv import load_dotenv
 
@@ -117,7 +118,7 @@ class LightRAG:
     # Directory
     # ---
 
-    working_dir: str = field(default="./rag_storage")
+    working_dir: str = field(default_factory=lambda: str(PathManager.get_default_storage_dir()))
     """Directory where cache and temporary files are stored."""
 
     # Storage

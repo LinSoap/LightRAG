@@ -20,16 +20,15 @@ class PathManager:
         system = platform.system()
 
         if system == "Windows":
-            # Windows: %APPDATA%/LightRAG/data
+            # Windows: %APPDATA%/LightRAG
             base_dir = Path(os.environ.get("APPDATA", ""))
+            return base_dir / "LightRAG"
         elif system == "Darwin":  # macOS
-            # macOS: ~/Library/Application Support/LightRAG/data
-            base_dir = Path.home() / "Library" / "Application Support"
+            # macOS: ~/.lightrag
+            return Path.home() / ".lightrag"
         else:  # Linux
-            # Linux: ~/.local/share/LightRAG/data
-            base_dir = Path.home() / ".local" / "share"
-
-        return base_dir / "LightRAG" / "data"
+            # Linux: ~/.lightrag
+            return Path.home() / ".lightrag"
 
     @staticmethod
     def get_working_dir(workspace: str = "", base_dir: Optional[Union[str, Path]] = None) -> Path:
