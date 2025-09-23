@@ -78,10 +78,11 @@ async def detailed_health_check():
     }
 
 
-@app.get("/health/trends")
-async def health_trends(hours: int = 24):
-    """健康趋势端点"""
-    return health_checker.get_health_trends(hours)
+# 移除健康趋势端点，因为在本地服务场景中不必要
+# @app.get("/health/trends")
+# async def health_trends(hours: int = 24):
+#     """健康趋势端点"""
+#     return health_checker.get_health_trends(hours)
 
 
 @app.get("/service-info")

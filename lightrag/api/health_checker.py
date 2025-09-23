@@ -1,12 +1,12 @@
 """
-健康检查器 - 负责监控各个组件状态
+健康检查器 - 负责监控各个组件状态（简化版）
 """
 import os
 import json
 import time
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -564,34 +564,13 @@ class HealthChecker:
         }
 
     def get_health_trends(self, hours: int = 24) -> Dict[str, Any]:
-        """获取健康趋势（最近N小时）"""
-        cutoff_time = datetime.now() - timedelta(hours=hours)
-
-        recent_checks = [
-            check for check in self.check_history
-            if datetime.fromisoformat(check["timestamp"].replace('Z', '+00:00')) > cutoff_time
-        ]
-
-        if not recent_checks:
-            return {"message": f"No health checks in the last {hours} hours"}
-
-        # 计算趋势
-        healthy_count = sum(1 for check in recent_checks if check["overall_status"] == HealthStatus.HEALTHY.value)
-        degraded_count = sum(1 for check in recent_checks if check["overall_status"] == HealthStatus.DEGRADED.value)
-        unhealthy_count = sum(1 for check in recent_checks if check["overall_status"] == HealthStatus.UNHEALTHY.value)
-
-        # 计算平均响应时间
-        avg_duration = sum(check.get("check_duration_ms", 0) for check in recent_checks) / len(recent_checks)
-
+        """获取健康趋势（简化版，返回基本信息）"""
+        # 在本地服务场景中，健康趋势分析不是必需的
+        # 返回简化的当前状态信息
         return {
-            "time_range_hours": hours,
-            "total_checks": len(recent_checks),
-            "healthy_checks": healthy_count,
-            "degraded_checks": degraded_count,
-            "unhealthy_checks": unhealthy_count,
-            "health_percentage": (healthy_count / len(recent_checks)) * 100,
-            "average_check_duration_ms": round(avg_duration, 2),
-            "latest_status": recent_checks[-1]["overall_status"]
+            "message": "Health trends analysis is disabled for local service deployment",
+            "current_status": "use /health or /health/detailed for current status",
+            "note": "Trend analysis is unnecessary for local Electron applications"
         }
 
 
