@@ -11,6 +11,8 @@ from lightrag.kg.shared_storage import (
 from lightrag.lightrag import LightRAG
 from lightrag.types import GPTKeywordExtractionFormat
 from lightrag.utils import EmbeddingFunc
+from lightrag.utils.path_manager import get_working_dir, get_default_storage_dir
+from lightrag.utils.path_config import get_global_config
 
 
 load_dotenv()
@@ -19,7 +21,14 @@ load_dotenv()
 class LightRAGConfig:
     """Centralized configuration for LightRAG"""
 
-    WORKING_DIR = "./rag_storage"
+    # 获取全局配置实例
+    _path_config = get_global_config()
+
+    # 存储路径配置
+    WORKING_DIR = str(get_working_dir(
+        workspace=_path_config.get_workspace(),
+        base_dir=_path_config.get_storage_base_dir()
+    ))
     KV_STORAGE = "JsonKVStorage"
     VECTOR_STORAGE = "NanoVectorDBStorage"
     GRAPH_STORAGE = "NetworkXStorage"
