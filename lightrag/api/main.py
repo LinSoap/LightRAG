@@ -1,6 +1,7 @@
 import argparse
 import socket
 import sys
+from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from lightrag.api.routers.documents_routers import create_document_routers
@@ -8,6 +9,7 @@ from lightrag.api.routers.common import router as common_router
 from lightrag.api.routers.query_routers import create_query_routes
 from lightrag.api.routers.graph_routers import create_graph_routes
 from lightrag.api.routers.collection_routers import create_collection_routes
+from lightrag.api.service_manager import service_manager, ServiceState
 
 app = FastAPI()
 
@@ -19,6 +21,47 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 健康检查端点（必须在其他路由之前）
+@app.get("/health")
+async def health_check():
+    """健康检查端点"""
+    service_info = service_manager.get_service_info()
+
+    # 检查服务状态
+    if service_manager.is_healthy():
+        status = "healthy"
+        status_code = 200
+    elif service_manager.state == ServiceState.STOPPING:
+        status = "stopping"
+        status_code = 503
+    elif service_manager.state == ServiceState.ERROR:
+        status = "unhealthy"
+        status_code = 500
+    else:
+        status = "degraded"
+        status_code = 200
+
+    response = {
+        "status": status,
+        "timestamp": datetime.now().isoformat(),
+        "service": service_info,
+        "version": "1.4.8"
+    }
+
+    # 根据状态返回不同的HTTP状态码
+    from fastapi import status as http_status
+    if status_code != 200:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=status_code, detail=response)
+
+    return response
+
+
+@app.get("/service-info")
+async def get_service_info():
+    """获取详细的服务信息"""
+    return service_manager.get_service_info()
 
 # Include the common router
 app.include_router(common_router)
@@ -78,11 +121,28 @@ def parse_args():
     return parser.parse_args()
 
 
+def setup_service_management():
+    """设置服务管理"""
+    # 设置服务为运行状态
+    service_manager.set_running()
+
+    # 注册关闭回调
+    def shutdown_callback():
+        print("\n🔄 正在执行关闭回调...")
+
+    service_manager.register_shutdown_callback(shutdown_callback)
+
+    print("✅ 服务管理器已启动")
+
+
 def main():
     import uvicorn
     import logging
 
     args = parse_args()
+
+    # 设置服务管理
+    setup_service_management()
 
     # 确定最终端口
     if args.port == 0:
@@ -96,20 +156,39 @@ def main():
     print(f"📍 绑定地址: {args.host}")
     print(f"📖 API文档: http://{args.host}:{port}/docs")
     print(f"💊 健康检查: http://{args.host}:{port}/health")
+    print(f"🛡️  按 Ctrl+C 可优雅关闭服务")
 
     # 设置日志级别
     log_level = getattr(logging, args.log_level.upper())
     logging.basicConfig(level=log_level)
 
-    # 启动服务
-    uvicorn.run(
-        "lightrag.api.main:app",
-        host=args.host,
-        port=port,
-        access_log=(args.log_level == 'debug'),
-        reload=args.reload,
-        log_level=args.log_level
-    )
+    try:
+        # 启动服务
+        uvicorn.run(
+            "lightrag.api.main:app",
+            host=args.host,
+            port=port,
+            access_log=(args.log_level == 'debug'),
+            reload=args.reload,
+            log_level=args.log_level
+        )
+    except KeyboardInterrupt:
+        print("\n⚠️  收到中断信号，正在关闭服务...")
+        service_manager.initiate_shutdown("KeyboardInterrupt received")
+    except Exception as e:
+        print(f"\n❌ 服务启动错误: {e}")
+        service_manager.set_error(str(e))
+        service_manager.initiate_shutdown(f"Service error: {e}")
+    finally:
+        # 显示最终状态
+        service_info = service_manager.get_service_info()
+        print(f"\n📊 服务统计:")
+        print(f"   - 运行时间: {service_info.get('uptime', 0):.2f} 秒")
+        print(f"   - 总请求数: {service_info.get('total_requests', 0)}")
+        print(f"   - 最终状态: {service_info.get('state', 'unknown')}")
+        if service_info.get('error_message'):
+            print(f"   - 错误信息: {service_info['error_message']}")
+        print("👋 LightRAG 服务已关闭")
 
 
 if __name__ == "__main__":
