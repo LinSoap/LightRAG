@@ -2,16 +2,19 @@ from pathlib import Path
 import shutil
 import traceback
 from typing import List
+from datetime import datetime
 from lightrag.api.schemas.document import (
-    ClearDocumentsResponse,
-    DeleteDocByIdResponse,
     DeleteDocRequest,
-    DocStatusResponse,
-    DocumentsResponse,
-    InsertResponse,
-    PipelineStatusResponse,
-    TrackStatusResponse,
+    DocumentItem,
+    DocumentsListData,
+    DocumentChunk,
+    DocumentChunksData,
+    DocumentUploadData,
+    PipelineStatusData,
+    TrackStatusData,
+    DocumentDeletionData,
 )
+from lightrag.api.schemas.common import GenericResponse
 from lightrag.api.utils.background import (
     background_delete_documents,
     pipeline_index_file,
@@ -40,8 +43,8 @@ def create_document_routers() -> APIRouter:
 
     lightrag_manager = LightRagManager()
 
-    @router.get("", response_model=List[DocumentsResponse])
-    async def documents(collection_id: str) -> List[DocumentsResponse]:
+    @router.get("", response_model=GenericResponse[DocumentsListData])
+    async def documents(collection_id: str) -> GenericResponse[DocumentsListData]:
         try:
             rag = await lightrag_manager.get_rag_instance(collection_id)
 
@@ -68,23 +71,33 @@ def create_document_routers() -> APIRouter:
                     continue
 
                 doc_list.append(
-                    DocumentsResponse(
+                    DocumentItem(
                         id=doc_id,
                         collection_id=collection_id,
-                        status=doc_status.status,
-                        chunks_count=doc_status.chunks_count,
-                        chunks_list=doc_status.chunks_list or [],
                         content_summary=doc_status.content_summary,
                         content_length=doc_status.content_length,
+                        status=doc_status.status,
                         created_at=format_datetime(doc_status.created_at),
                         updated_at=format_datetime(doc_status.updated_at),
-                        file_path=doc_status.file_path,
                         track_id=doc_status.track_id,
+                        chunks_count=doc_status.chunks_count,
                         error_msg=doc_status.error_msg,
                         metadata=doc_status.metadata,
+                        file_path=doc_status.file_path,
                     )
                 )
-            return doc_list
+
+            data = DocumentsListData(
+                documents=doc_list,
+                total_documents=len(doc_list),
+                collection_id=collection_id
+            )
+
+            return GenericResponse(
+                status="success",
+                message=f"Found {len(doc_list)} documents in collection '{collection_id}'",
+                data=data
+            )
 
         except HTTPException as e:
             raise e
@@ -92,30 +105,57 @@ def create_document_routers() -> APIRouter:
             logger.exception("Error in documents endpoint: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.get("/chunk")
+    @router.get("/chunk", response_model=GenericResponse[DocumentChunksData])
     async def get_document_chunks(
         collection_id: str, doc_id: str, limit: int = 10, offset: int = 0
-    ):
+    ) -> GenericResponse[DocumentChunksData]:
         try:
             rag = await lightrag_manager.get_rag_instance(collection_id)
             if rag is None:
                 logger.warning(f"Collection {collection_id} not found")
                 raise HTTPException(status_code=404, detail="Collection not found")
 
-            chunks = await rag.text_chunks.get_by_doc_id(doc_id)
-            return {"doc_id": doc_id, "chunks": chunks}
+            chunks_raw = await rag.text_chunks.get_by_doc_id(doc_id)
+
+            # Convert chunks to our data model
+            chunks = []
+            for i, chunk in enumerate(chunks_raw[offset:offset + limit]):
+                chunk_data = chunk if isinstance(chunk, dict) else {"content": str(chunk)}
+                chunks.append(
+                    DocumentChunk(
+                        id=chunk_data.get("id", f"{doc_id}_chunk_{i}"),
+                        content=chunk_data.get("content", ""),
+                        document_id=doc_id,
+                        chunk_index=offset + i,
+                        metadata=chunk_data.get("metadata", {})
+                    )
+                )
+
+            data = DocumentChunksData(
+                doc_id=doc_id,
+                chunks=chunks,
+                total_chunks=len(chunks_raw),
+                limit=limit,
+                offset=offset
+            )
+
+            return GenericResponse(
+                status="success",
+                message=f"Retrieved {len(chunks)} chunks for document '{doc_id}'",
+                data=data
+            )
         except HTTPException as e:
             raise e
         except Exception as e:
             logger.exception("Error in get_document_chunks endpoint: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.post("/upload", response_model=InsertResponse)
+    @router.post("/upload", response_model=GenericResponse[DocumentUploadData])
     async def upload_to_input_dir(
         collection_id: str,
         background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
-    ):
+    ) -> GenericResponse[DocumentUploadData]:
         try:
             # Sanitize filename to prevent Path Traversal attacks
             doc_manager = DocumentManager(input_dir="./inputs", workspace=collection_id)
@@ -133,11 +173,24 @@ def create_document_routers() -> APIRouter:
             file_path = doc_manager.input_dir / safe_filename
             # Check if file already exists
             if file_path.exists():
-                return InsertResponse(
-                    status="duplicated",
+                data = DocumentUploadData(
+                    filename=safe_filename,
+                    upload_status="duplicated",
                     message=f"File '{safe_filename}' already exists in the input directory.",
                     track_id="",
+                    processing_started=False,
+                    timestamp=datetime.now()
                 )
+                return GenericResponse(
+                    status="success",
+                    message="File duplicate check completed",
+                    data=data
+                )
+
+            # Get file size
+            file.file.seek(0, 2)  # Seek to end
+            file_size = file.file.tell()
+            file.file.seek(0)  # Seek back to beginning
 
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
@@ -147,10 +200,21 @@ def create_document_routers() -> APIRouter:
             # Add to background tasks and get track_id
             background_tasks.add_task(pipeline_index_file, rag, file_path, track_id)
 
-            return InsertResponse(
-                status="success",
+            data = DocumentUploadData(
+                filename=safe_filename,
+                file_size=file_size,
+                file_type=safe_filename.split('.')[-1] if '.' in safe_filename else None,
+                upload_status="success",
                 message=f"File '{safe_filename}' uploaded successfully. Processing will continue in background.",
                 track_id=track_id,
+                processing_started=True,
+                timestamp=datetime.now()
+            )
+
+            return GenericResponse(
+                status="success",
+                message="File uploaded successfully",
+                data=data
             )
 
         except Exception as e:
@@ -159,9 +223,9 @@ def create_document_routers() -> APIRouter:
 
     @router.get(
         "/pipeline_status",
-        response_model=PipelineStatusResponse,
+        response_model=GenericResponse[PipelineStatusData],
     )
-    async def get_pipeline_status(collection_id: str) -> PipelineStatusResponse:
+    async def get_pipeline_status(collection_id: str) -> GenericResponse[PipelineStatusData]:
         """
         Get the current status of the document indexing pipeline.
 
@@ -245,7 +309,26 @@ def create_document_routers() -> APIRouter:
                 # Use format_datetime to ensure consistent formatting
                 status_dict["job_start"] = format_datetime(status_dict["job_start"])
 
-            return PipelineStatusResponse(**status_dict)
+            data = PipelineStatusData(
+                autoscanned=status_dict.get("autoscanned", False),
+                busy=status_dict.get("busy", False),
+                job_name=status_dict.get("job_name", "Default Job"),
+                job_start=status_dict.get("job_start"),
+                docs=status_dict.get("docs", 0),
+                batchs=status_dict.get("batchs", 0),
+                cur_batch=status_dict.get("cur_batch", 0),
+                request_pending=status_dict.get("request_pending", False),
+                latest_message=status_dict.get("latest_message", ""),
+                history_messages=status_dict.get("history_messages"),
+                update_status=status_dict.get("update_status"),
+                timestamp=datetime.now()
+            )
+
+            return GenericResponse(
+                status="success",
+                message="Pipeline status retrieved successfully",
+                data=data
+            )
         except Exception as e:
             logger.error(f"Error getting pipeline status: {str(e)}")
             logger.error(traceback.format_exc())
@@ -253,11 +336,11 @@ def create_document_routers() -> APIRouter:
 
     @router.get(
         "/track_status",
-        response_model=TrackStatusResponse,
+        response_model=GenericResponse[TrackStatusData],
     )
     async def get_track_status(
         collection_id: str, track_id: str
-    ) -> TrackStatusResponse:
+    ) -> GenericResponse[TrackStatusData]:
         """
         Get the processing status of documents by tracking ID.
 
@@ -294,8 +377,9 @@ def create_document_routers() -> APIRouter:
 
             for doc_id, doc_status in docs_by_track_id.items():
                 documents.append(
-                    DocStatusResponse(
+                    DocumentItem(
                         id=doc_id,
+                        collection_id=collection_id,
                         content_summary=doc_status.content_summary,
                         content_length=doc_status.content_length,
                         status=doc_status.status,
@@ -314,11 +398,18 @@ def create_document_routers() -> APIRouter:
                 status_key = str(doc_status.status)
                 status_summary[status_key] = status_summary.get(status_key, 0) + 1
 
-            return TrackStatusResponse(
+            data = TrackStatusData(
                 track_id=track_id,
                 documents=documents,
                 total_count=len(documents),
                 status_summary=status_summary,
+                timestamp=datetime.now()
+            )
+
+            return GenericResponse(
+                status="success",
+                message=f"Retrieved status for {len(documents)} documents with track_id '{track_id}'",
+                data=data
             )
 
         except HTTPException:
@@ -330,13 +421,13 @@ def create_document_routers() -> APIRouter:
 
     @router.delete(
         "/delete_document",
-        response_model=DeleteDocByIdResponse,
+        response_model=GenericResponse[DocumentDeletionData],
     )
     async def delete_document(
         collection_id: str,
         delete_request: DeleteDocRequest,
         background_tasks: BackgroundTasks,
-    ) -> DeleteDocByIdResponse:
+    ) -> GenericResponse[DocumentDeletionData]:
         """
         Delete documents and all their associated data by their IDs using background processing.
 
@@ -368,10 +459,18 @@ def create_document_routers() -> APIRouter:
         # The rag object is initialized from the server startup args,
         # so we can access its properties here.
         if not rag.enable_llm_cache_for_entity_extract:
-            return DeleteDocByIdResponse(
+            data = DocumentDeletionData(
+                operation_id=f"del_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 status="not_allowed",
                 message="Operation not allowed when LLM cache for entity extraction is disabled.",
-                doc_id=", ".join(delete_request.doc_ids),
+                affected_documents=doc_ids,
+                files_to_delete=delete_request.delete_file,
+                timestamp=datetime.now()
+            )
+            return GenericResponse(
+                status="success",
+                message="Document deletion permission check completed",
+                data=data
             )
 
         try:
@@ -381,10 +480,18 @@ def create_document_routers() -> APIRouter:
 
             # Check if pipeline is busy
             if pipeline_status.get("busy", False):
-                return DeleteDocByIdResponse(
+                data = DocumentDeletionData(
+                    operation_id=f"del_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                     status="busy",
                     message="Cannot delete documents while pipeline is busy",
-                    doc_id=", ".join(doc_ids),
+                    affected_documents=doc_ids,
+                    files_to_delete=delete_request.delete_file,
+                    timestamp=datetime.now()
+                )
+                return GenericResponse(
+                    status="success",
+                    message="Pipeline busy check completed",
+                    data=data
                 )
 
             # Add deletion task to background tasks
@@ -396,10 +503,19 @@ def create_document_routers() -> APIRouter:
                 delete_request.delete_file,
             )
 
-            return DeleteDocByIdResponse(
+            data = DocumentDeletionData(
+                operation_id=f"del_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 status="deletion_started",
                 message=f"Document deletion for {len(doc_ids)} documents has been initiated. Processing will continue in background.",
-                doc_id=", ".join(doc_ids),
+                affected_documents=doc_ids,
+                files_to_delete=delete_request.delete_file,
+                timestamp=datetime.now()
+            )
+
+            return GenericResponse(
+                status="success",
+                message="Document deletion initiated",
+                data=data
             )
 
         except Exception as e:
