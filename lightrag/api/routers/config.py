@@ -3,16 +3,13 @@ Configuration management API routes for LightRAG.
 """
 
 import traceback
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Body
 from typing import Dict, Any, Optional
-from pydantic import BaseModel, Field
 from lightrag.config import ConfigManager
 from lightrag.api.schemas.config import (
     ConfigTestRequest,
     ConfigTestResponse,
     ConfigUpdateResponse,
-    EmbeddingConfig,
-    RerankConfig,
     EmbeddingConfigUpdate,
     RerankConfigUpdate,
 )
@@ -54,7 +51,7 @@ async def get_models_config():
     """
     try:
         config_manager = get_config_manager()
-        return await config_manager.get_config(mask_api_keys=True)
+        return await config_manager.get_config()
     except Exception as e:
         logger.error(f"获取配置失败: {str(e)}")
         logger.error(traceback.format_exc())
@@ -78,8 +75,8 @@ async def update_embedding_config(
                     "model": "bge-m3:latest",
                     "dim": 1024,
                     "host": "http://localhost:11434",
-                    "api_key": None
-                }
+                    "api_key": None,
+                },
             },
             "openai_example": {
                 "summary": "OpenAI 云服务示例",
@@ -89,8 +86,8 @@ async def update_embedding_config(
                     "model": "text-embedding-3-small",
                     "dim": 1536,
                     "host": "https://api.openai.com",
-                    "api_key": "sk-proj-your-openai-api-key"
-                }
+                    "api_key": "sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx",
+                },
             },
             "jina_example": {
                 "summary": "Jina AI 示例",
@@ -100,8 +97,8 @@ async def update_embedding_config(
                     "model": "jina-embeddings-v2-base-en",
                     "dim": 768,
                     "host": "https://api.jina.ai",
-                    "api_key": "jina_your-api-key"
-                }
+                    "api_key": "jina_xxxxxxxxxxxxxxxxxxxxxxxxxx",
+                },
             },
             "siliconflow_example": {
                 "summary": "SiliconFlow 示例",
@@ -111,8 +108,8 @@ async def update_embedding_config(
                     "model": "Qwen/Qwen3-Embedding-0.6B",
                     "dim": 1024,
                     "host": "https://api.siliconflow.cn/v1",
-                    "api_key": "your-siliconflow-api-key"
-                }
+                    "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxx",
+                },
             },
             "zhipu_example": {
                 "summary": "智谱AI 示例",
@@ -122,8 +119,8 @@ async def update_embedding_config(
                     "model": "embedding-3",
                     "dim": 1024,
                     "host": "https://open.bigmodel.cn/api/paas/v4",
-                    "api_key": "your-zhipuai-api-key"
-                }
+                    "api_key": "your-zhipuai-api-key",
+                },
             },
             "huggingface_example": {
                 "summary": "HuggingFace 示例",
@@ -133,8 +130,8 @@ async def update_embedding_config(
                     "model": "BAAI/bge-small-zh-v1.5",
                     "dim": 512,
                     "host": None,
-                    "api_key": None
-                }
+                    "api_key": None,
+                },
             },
             "anthropic_example": {
                 "summary": "Anthropic 示例",
@@ -144,10 +141,10 @@ async def update_embedding_config(
                     "model": "voyage-3",
                     "dim": 1024,
                     "host": "https://api.voyageai.com/v1",
-                    "api_key": "your-voyage-api-key"
-                }
-            }
-        }
+                    "api_key": "your-voyage-api-key",
+                },
+            },
+        },
     )
 ):
     """
@@ -189,7 +186,9 @@ async def update_embedding_config(
         if isinstance(e, ConfigError):
             raise config_error_to_http_error(e)
         else:
-            raise HTTPException(status_code=500, detail=f"更新Embedding配置失败: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"更新Embedding配置失败: {str(e)}"
+            )
 
 
 @router.put("/rerank", response_model=ConfigUpdateResponse)
@@ -207,8 +206,8 @@ async def update_rerank_config(
                     "host": None,
                     "api_key": None,
                     "by_default": False,
-                    "min_score": 0.0
-                }
+                    "min_score": 0.0,
+                },
             },
             "cohere_example": {
                 "summary": "Cohere Rerank 示例",
@@ -217,10 +216,10 @@ async def update_rerank_config(
                     "binding": "cohere",
                     "model": "rerank-english-v3.5",
                     "host": "https://api.cohere.com",
-                    "api_key": "your-cohere-api-key",
+                    "api_key": "xxxxxxxxxxxxxxxxxxxxxxxx",
                     "by_default": True,
-                    "min_score": 0.5
-                }
+                    "min_score": 0.5,
+                },
             },
             "jina_example": {
                 "summary": "Jina Rerank 示例",
@@ -229,12 +228,12 @@ async def update_rerank_config(
                     "binding": "jina",
                     "model": "jina-reranker-v2-base-multilingual",
                     "host": "https://api.jina.ai",
-                    "api_key": "jina_your-api-key",
+                    "api_key": "jina_xxxxxxxxxxxxxxxxxxxxxxxxxx",
                     "by_default": True,
-                    "min_score": 0.7
-                }
-            }
-        }
+                    "min_score": 0.7,
+                },
+            },
+        },
     )
 ):
     """
@@ -288,8 +287,8 @@ async def test_config(
                 "value": {
                     "type": "embedding",
                     "text": "这是一个测试文本，用于验证 embedding 模型是否正常工作。",
-                    "documents": None
-                }
+                    "documents": None,
+                },
             },
             "rerank_test_example": {
                 "summary": "Rerank 配置测试示例",
@@ -302,9 +301,9 @@ async def test_config(
                         "自然语言处理专注于计算机与人类语言的交互",
                         "计算机视觉使机器能够理解和解释视觉信息",
                         "强化学习通过奖励机制训练智能体",
-                        "数据挖掘帮助从大量数据中发现有价值的信息"
-                    ]
-                }
+                        "数据挖掘帮助从大量数据中发现有价值的信息",
+                    ],
+                },
             },
             "embedding_multilingual_example": {
                 "summary": "多语言 Embedding 测试",
@@ -312,8 +311,8 @@ async def test_config(
                 "value": {
                     "type": "embedding",
                     "text": "Machine learning is a subset of artificial intelligence. 机器学习是人工智能的一个重要分支。",
-                    "documents": None
-                }
+                    "documents": None,
+                },
             },
             "rerank_long_documents_example": {
                 "summary": "长文档 Rerank 测试",
@@ -326,11 +325,11 @@ async def test_config(
                         "支持向量机（SVM）是一种监督学习算法，主要用于分类和回归问题。SVM的核心思想是找到一个最优的超平面来分隔不同类别的数据点，使得不同类别之间的间隔最大化。SVM在处理高维数据和小样本学习问题上表现出色。",
                         "决策树是一种基于树结构的监督学习算法。它通过一系列的判断规则将数据集划分成不同的子集，每个内部节点代表一个特征测试，每个分支代表测试结果，每个叶节点代表一个分类或回归结果。决策树易于理解和解释，但容易过拟合。",
                         "随机森林是一种集成学习方法，它构建多个决策树并结合它们的预测结果。每棵决策树在训练时使用了不同的数据子集和特征子集，这增加了模型的多样性并减少了过拟合的风险。随机森林通常比单个决策树具有更好的泛化性能。",
-                        "逻辑回归是一种广泛用于二分类问题的统计方法。尽管名字中包含'回归'，但它实际上是一种分类算法。逻辑回归使用 sigmoid 函数将线性回归的输出映射到 (0,1) 区间，表示样本属于正类的概率。"
-                    ]
-                }
-            }
-        }
+                        "逻辑回归是一种广泛用于二分类问题的统计方法。尽管名字中包含'回归'，但它实际上是一种分类算法。逻辑回归使用 sigmoid 函数将线性回归的输出映射到 (0,1) 区间，表示样本属于正类的概率。",
+                    ],
+                },
+            },
+        },
     )
 ):
     """
@@ -406,7 +405,6 @@ async def test_config(
             raise config_error_to_http_error(e)
         else:
             raise HTTPException(status_code=500, detail=f"配置测试失败: {str(e)}")
-
 
 
 def create_config_routes():

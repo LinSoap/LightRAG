@@ -3,11 +3,15 @@ import socket
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from lightrag.api.routers.documents_routers import create_document_routers
-from lightrag.api.routers.query_routers import create_query_routes
-from lightrag.api.routers.graph_routers import create_graph_routes
-from lightrag.api.routers.collection_routers import create_collection_routes
+from lightrag.api.routers.documents import create_document_routers
+from lightrag.api.routers.query import create_query_routes
+from lightrag.api.routers.graph import create_graph_routes
+from lightrag.api.routers.collection import create_collection_routes
 from lightrag.api.routers.system_routers import router as system_router
+from lightrag.api.routers.config import (
+    router as config_router,
+    initialize_config_manager,
+)
 from lightrag.api.service_manager import service_manager
 from lightrag.utils.path_config import get_global_config
 from lightrag.utils.path_manager import PathManager
@@ -27,6 +31,7 @@ app.include_router(create_collection_routes())
 app.include_router(create_document_routers())
 app.include_router(create_query_routes())
 app.include_router(create_graph_routes())
+app.include_router(config_router)
 
 
 def find_free_port(start_port: int = 9621, max_attempts: int = 100) -> int:
@@ -49,8 +54,11 @@ def parse_args():
     parser.add_argument(
         "--port", type=int, default=0, help="端口号 (默认: 0表示自动选择)"
     )
-    parser.add_argument("--host", default="127.0.0.1", help="绑定地址 (默认: 127.0.0.1)")
+    parser.add_argument(
+        "--host", default="127.0.0.1", help="绑定地址 (默认: 127.0.0.1)"
+    )
     parser.add_argument("--storage-dir", type=str, help="存储目录路径")
+    parser.add_argument("--config", type=str, help="配置文件路径 (config.json)")
     parser.add_argument(
         "--log-level",
         choices=["debug", "info", "warning", "error"],
@@ -69,31 +77,67 @@ def setup_path_configuration(args):
         print(f"📁 存储目录: {args.storage_dir}")
 
     if config.should_auto_create():
-        storage_base_dir = config.get_storage_base_dir() or PathManager.get_default_storage_dir()
+        storage_base_dir = (
+            config.get_storage_base_dir() or PathManager.get_default_storage_dir()
+        )
         PathManager.ensure_directory(storage_base_dir)
         print(f"📂 工作目录: {storage_base_dir}")
 
 
-def setup_service_management():
-    """设置服务管理"""
+async def setup_config_management(args):
+    """设置配置管理"""
     service_manager.set_running()
     service_manager.register_shutdown_callback(lambda: print("\n🔄 执行关闭回调..."))
     print("✅ 服务管理器已启动")
 
+    # 初始化配置管理器
+    try:
+        if args.config:
+            # 从指定配置文件加载
+            import os
+            from lightrag.config import ConfigManager
 
-def main():
-    import uvicorn
+            config_dir = os.path.dirname(os.path.abspath(args.config))
+            config_manager = ConfigManager(config_dir)
+            await config_manager.initialize()
+            print(f"✅ 配置管理器已启动 (配置文件: {args.config})")
+        else:
+            # 使用默认配置
+            await initialize_config_manager()
+            print("✅ 配置管理器已启动 (默认配置)")
+    except Exception as e:
+        print(f"⚠️ 配置管理器启动失败: {str(e)}")
+        print("💡 配置API将不可用，但其他功能正常工作")
 
+
+async def main_async():
+    """异步主函数"""
     args = parse_args()
     setup_path_configuration(args)
-    setup_service_management()
+    await setup_config_management(args)
 
     port = find_free_port() if args.port == 0 else args.port
     print(f"🚀 LightRAG 启动: http://{args.host}:{port}")
     print(f"📖 API文档: http://{args.host}:{port}/docs")
     print(f"💊 系统概览: http://{args.host}:{port}/overview")
+    print(f"⚙️ 配置管理: http://{args.host}:{port}/api/config/models")
 
     logging.basicConfig(level=getattr(logging, args.log_level.upper()))
+
+    return args, port
+
+
+def main():
+    import uvicorn
+
+    # 运行异步初始化
+    try:
+        import asyncio
+
+        args, port = asyncio.run(main_async())
+    except Exception as e:
+        print(f"❌ 启动失败: {str(e)}")
+        return
 
     try:
         uvicorn.run(

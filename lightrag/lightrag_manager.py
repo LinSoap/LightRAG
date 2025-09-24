@@ -1,7 +1,6 @@
 import logging
 import os
 import json
-from datetime import datetime
 from dotenv import load_dotenv
 from lightrag.kg.shared_storage import (
     finalize_share_data,
@@ -11,7 +10,7 @@ from lightrag.kg.shared_storage import (
 from lightrag.lightrag import LightRAG
 from lightrag.types import GPTKeywordExtractionFormat
 from lightrag.utils import EmbeddingFunc
-from lightrag.utils.path_manager import get_working_dir, get_default_storage_dir
+from lightrag.utils.path_manager import get_working_dir
 from lightrag.utils.path_config import get_global_config
 
 
@@ -25,10 +24,12 @@ class LightRAGConfig:
     _path_config = get_global_config()
 
     # 存储路径配置
-    WORKING_DIR = str(get_working_dir(
-        workspace=_path_config.get_workspace(),
-        base_dir=_path_config.get_storage_base_dir()
-    ))
+    WORKING_DIR = str(
+        get_working_dir(
+            workspace=_path_config.get_workspace(),
+            base_dir=_path_config.get_storage_base_dir(),
+        )
+    )
     KV_STORAGE = "JsonKVStorage"
     VECTOR_STORAGE = "NanoVectorDBStorage"
     GRAPH_STORAGE = "NetworkXStorage"
@@ -87,6 +88,45 @@ class LightRagManager:
     def __init__(self):
         self.logger = logging.getLogger("lightrag")
         self.rag_instances = {}
+        self.config_manager = None
+
+    def set_config_manager(self, config_manager):
+        """设置配置管理器实例"""
+        self.config_manager = config_manager
+        self.logger.info("配置管理器已设置")
+
+    def get_embedding_config(self):
+        """获取Embedding配置"""
+        if self.config_manager:
+            return self.config_manager.get_embedding_config_for_rag()
+        return self._get_default_embedding_config()
+
+    def get_rerank_config(self):
+        """获取Rerank配置"""
+        if self.config_manager:
+            return self.config_manager.get_rerank_config_for_rag()
+        return self._get_default_rerank_config()
+
+    def _get_default_embedding_config(self):
+        """获取默认Embedding配置"""
+        return {
+            "binding": "ollama",
+            "model": "bge-m3:latest",
+            "dim": 1024,
+            "host": "http://localhost:11434",
+            "api_key": None,
+        }
+
+    def _get_default_rerank_config(self):
+        """获取默认Rerank配置"""
+        return {
+            "binding": "null",
+            "model": None,
+            "host": None,
+            "api_key": None,
+            "by_default": False,
+            "min_score": 0.0,
+        }
 
     async def list_collections(self):
         if not os.path.exists(LightRAGConfig.WORKING_DIR):
@@ -189,38 +229,39 @@ class LightRagManager:
 
         async def optimized_embedding_function(texts):
             try:
+                # 获取动态配置
+                embedding_config = self.get_embedding_config()
+                binding = embedding_config["binding"]
 
-                if EmbeddingConfig.EMBEDDING_BINDING == "ollama":
+                if binding == "ollama":
                     from lightrag.llm.ollama import ollama_embed
 
                     return await ollama_embed(
                         texts,
-                        embed_model=EmbeddingConfig.EMBEDDING_MODEL,
-                        host=EmbeddingConfig.EMBEDDING_BINDING_HOST,
-                        api_key=EmbeddingConfig.EMBEDDING_BINDING_API_KEY,
+                        embed_model=embedding_config["model"],
+                        host=embedding_config["host"],
+                        api_key=embedding_config["api_key"],
                     )
-                elif EmbeddingConfig.EMBEDDING_BINDING == "jina":
+                elif binding == "jina":
                     from lightrag.llm.jina import jina_embed
 
                     return await jina_embed(
                         texts,
-                        dimensions=EmbeddingConfig.EMBEDDING_DIM,
-                        base_url=EmbeddingConfig.EMBEDDING_BINDING_HOST,
-                        api_key=EmbeddingConfig.EMBEDDING_BINDING_API_KEY,
+                        dimensions=embedding_config["dim"],
+                        base_url=embedding_config["host"],
+                        api_key=embedding_config["api_key"],
                     )
                 else:  # openai and compatible
                     from lightrag.llm.openai import openai_embed
 
                     return await openai_embed(
                         texts,
-                        model=EmbeddingConfig.EMBEDDING_MODEL,
-                        base_url=EmbeddingConfig.EMBEDDING_BINDING_HOST,
-                        api_key=EmbeddingConfig.EMBEDDING_BINDING_API_KEY,
+                        model=embedding_config["model"],
+                        base_url=embedding_config["host"],
+                        api_key=embedding_config["api_key"],
                     )
             except ImportError as e:
-                raise Exception(
-                    f"Failed to import {EmbeddingConfig.EMBEDDING_BINDING} embedding: {e}"
-                )
+                raise Exception(f"Failed to import {binding} embedding: {e}")
 
         return optimized_embedding_function
 
@@ -230,11 +271,15 @@ class LightRagManager:
         Since LightRAG is now stateless, we create a fresh instance each time.
         """
         try:
+            # 获取动态配置
+            embedding_config = self.get_embedding_config()
+            rerank_config = self.get_rerank_config()
+
             # Generate embedding and LLM functions
             # Create embedding function with optimized configuration
             rerank_model_func = None
             embedding_func = EmbeddingFunc(
-                embedding_dim=EmbeddingConfig.EMBEDDING_DIM,
+                embedding_dim=embedding_config["dim"],
                 func=self.create_optimized_embedding_function(),
             )
 

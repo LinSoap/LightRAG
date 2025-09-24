@@ -33,6 +33,7 @@ a = Analysis(
         'lightrag.api.routers.graph_routers',
         'lightrag.api.routers.collection_routers',
         'lightrag.api.routers.common',
+        'lightrag.api.routers.config_routers',
 
         # API工具模块
         'lightrag.api.utils.background',
@@ -44,6 +45,7 @@ a = Analysis(
         'lightrag.api.schema.document_schema',
         'lightrag.api.schema.graph_schema',
         'lightrag.api.schema.query_schema',
+        'lightrag.api.schema.config_schemas',
 
         # 存储实现
         'lightrag.kg.json_kv_impl',
@@ -56,6 +58,15 @@ a = Analysis(
         'lightrag.llm.openai',
         'lightrag.llm.ollama',
         'lightrag.llm.jina',
+
+        # 配置管理模块
+        'lightrag.config',
+        'lightrag.config.schemas',
+        'lightrag.config.config_manager',
+        'lightrag.config.storage',
+        'lightrag.config.validators',
+        'lightrag.config.exceptions',
+        'lightrag.config.migration',
 
         # 工具模块
         'lightrag.utils',
@@ -79,6 +90,7 @@ a = Analysis(
         'tiktoken',
         'openai',
         'dotenv',
+        'aiohttp',
 
         # 可选第三方库（如果有的话）
         'yaml',
