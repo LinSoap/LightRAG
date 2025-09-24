@@ -1,7 +1,7 @@
 import logging
 import os
 import json
-from lightrag.config_manager import AppConfig
+from lightrag.config_manager import get_app_config
 from lightrag.kg.shared_storage import (
     finalize_share_data,
     initialize_pipeline_status,
@@ -21,7 +21,7 @@ class LightRagManager:
     """LightRAG Manager to handle LightRAG instances per collection"""
 
     def __init__(self):
-        app_config = AppConfig.load()
+        app_config = get_app_config()
 
         self.logger = logging.getLogger("lightrag")
         self.rag_instances = {}
@@ -137,34 +137,34 @@ class LightRagManager:
             try:
                 # 获取动态配置
                 embedding_config = self.embedding_config.model_dump()
-                binding = embedding_config["binding"]
+                binding = embedding_config["EMBEDDING_BINDING"]
 
                 if binding == "ollama":
                     from lightrag.llm.ollama import ollama_embed
 
                     return await ollama_embed(
                         texts,
-                        embed_model=embedding_config["model"],
-                        host=embedding_config["host"],
-                        api_key=embedding_config["api_key"],
+                        embed_model=embedding_config["EMBEDDING_MODEL"],
+                        host=embedding_config["EMBEDDING_BINDING_HOST"],
+                        api_key=embedding_config["EMBEDDING_BINDING_API_KEY"],
                     )
                 elif binding == "jina":
                     from lightrag.llm.jina import jina_embed
 
                     return await jina_embed(
                         texts,
-                        dimensions=embedding_config["dim"],
-                        base_url=embedding_config["host"],
-                        api_key=embedding_config["api_key"],
+                        dimensions=embedding_config["EMBEDDING_DIM"],
+                        base_url=embedding_config["EMBEDDING_BINDING_HOST"],
+                        api_key=embedding_config["EMBEDDING_BINDING_API_KEY"],
                     )
                 else:  # openai and compatible
                     from lightrag.llm.openai import openai_embed
 
                     return await openai_embed(
                         texts,
-                        model=embedding_config["model"],
-                        base_url=embedding_config["host"],
-                        api_key=embedding_config["api_key"],
+                        model=embedding_config["EMBEDDING_MODEL"],
+                        base_url=embedding_config["EMBEDDING_BINDING_HOST"],
+                        api_key=embedding_config["EMBEDDING_BINDING_API_KEY"],
                     )
             except ImportError as e:
                 raise Exception(f"Failed to import {binding} embedding: {e}")

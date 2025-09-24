@@ -44,7 +44,6 @@ from lightrag.constants import (
     DEFAULT_LLM_TIMEOUT,
     DEFAULT_EMBEDDING_TIMEOUT,
 )
-from lightrag.utils import get_env_value
 
 from lightrag.kg import (
     STORAGES,
@@ -96,7 +95,7 @@ from .utils import (
     generate_track_id,
     logger,
 )
-from .utils.path_manager import PathManager
+from .path_manager import get_default_storage_dir
 from .types import KnowledgeGraph
 from dotenv import load_dotenv
 
@@ -118,7 +117,7 @@ class LightRAG:
     # Directory
     # ---
 
-    working_dir: str = field(default_factory=lambda: str(PathManager.get_default_storage_dir()))
+    working_dir: str = field(default_factory=lambda: str(get_default_storage_dir()))
     """Directory where cache and temporary files are stored."""
 
     # Storage
@@ -150,56 +149,38 @@ class LightRAG:
     # Query parameters
     # ---
 
-    top_k: int = field(default=get_env_value("TOP_K", DEFAULT_TOP_K, int))
+    top_k: int = field(default=int(DEFAULT_TOP_K))
     """Number of entities/relations to retrieve for each query."""
 
-    chunk_top_k: int = field(
-        default=get_env_value("CHUNK_TOP_K", DEFAULT_CHUNK_TOP_K, int)
-    )
+    chunk_top_k: int = field(default=int(DEFAULT_CHUNK_TOP_K))
     """Maximum number of chunks in context."""
 
-    max_entity_tokens: int = field(
-        default=get_env_value("MAX_ENTITY_TOKENS", DEFAULT_MAX_ENTITY_TOKENS, int)
-    )
+    max_entity_tokens: int = field(default=int(DEFAULT_MAX_ENTITY_TOKENS))
     """Maximum number of tokens for entity in context."""
 
-    max_relation_tokens: int = field(
-        default=get_env_value("MAX_RELATION_TOKENS", DEFAULT_MAX_RELATION_TOKENS, int)
-    )
+    max_relation_tokens: int = field(default=int(DEFAULT_MAX_RELATION_TOKENS))
     """Maximum number of tokens for relation in context."""
 
-    max_total_tokens: int = field(
-        default=get_env_value("MAX_TOTAL_TOKENS", DEFAULT_MAX_TOTAL_TOKENS, int)
-    )
+    max_total_tokens: int = field(default=int(DEFAULT_MAX_TOTAL_TOKENS))
     """Maximum total tokens in context (including system prompt, entities, relations and chunks)."""
 
-    cosine_threshold: int = field(
-        default=get_env_value("COSINE_THRESHOLD", DEFAULT_COSINE_THRESHOLD, int)
-    )
+    cosine_threshold: int = field(default=int(DEFAULT_COSINE_THRESHOLD))
     """Cosine threshold of vector DB retrieval for entities, relations and chunks."""
 
-    related_chunk_number: int = field(
-        default=get_env_value("RELATED_CHUNK_NUMBER", DEFAULT_RELATED_CHUNK_NUMBER, int)
-    )
+    related_chunk_number: int = field(default=int(DEFAULT_RELATED_CHUNK_NUMBER))
     """Number of related chunks to grab from single entity or relation."""
 
-    kg_chunk_pick_method: str = field(
-        default=get_env_value("KG_CHUNK_PICK_METHOD", DEFAULT_KG_CHUNK_PICK_METHOD, str)
-    )
+    kg_chunk_pick_method: str = field(default=DEFAULT_KG_CHUNK_PICK_METHOD)
     """Method for selecting text chunks: 'WEIGHT' for weight-based selection, 'VECTOR' for embedding similarity-based selection."""
 
     # Entity extraction
     # ---
 
-    entity_extract_max_gleaning: int = field(
-        default=get_env_value("MAX_GLEANING", DEFAULT_MAX_GLEANING, int)
-    )
+    entity_extract_max_gleaning: int = field(default=int(DEFAULT_MAX_GLEANING))
     """Maximum number of entity extraction attempts for ambiguous content."""
 
     force_llm_summary_on_merge: int = field(
-        default=get_env_value(
-            "FORCE_LLM_SUMMARY_ON_MERGE", DEFAULT_FORCE_LLM_SUMMARY_ON_MERGE, int
-        )
+        default=int(DEFAULT_FORCE_LLM_SUMMARY_ON_MERGE)
     )
 
     # Text chunking
@@ -328,9 +309,7 @@ class LightRAG:
     rerank_model_func: Callable[..., object] | None = field(default=None)
     """Function for reranking retrieved documents. All rerank configurations (model name, API keys, top_k, etc.) should be included in this function. Optional."""
 
-    min_rerank_score: float = field(
-        default=get_env_value("MIN_RERANK_SCORE", DEFAULT_MIN_RERANK_SCORE, float)
-    )
+    min_rerank_score: float = field(default=float(DEFAULT_MIN_RERANK_SCORE))
     """Minimum rerank score threshold for filtering chunks after reranking."""
 
     # Storage
@@ -353,17 +332,13 @@ class LightRAG:
     )
     """Maximum number of parallel insert operations."""
 
-    max_graph_nodes: int = field(
-        default=get_env_value("MAX_GRAPH_NODES", DEFAULT_MAX_GRAPH_NODES, int)
-    )
+    max_graph_nodes: int = field(default=int(DEFAULT_MAX_GRAPH_NODES))
     """Maximum number of graph nodes to return in knowledge graph queries."""
 
     addon_params: dict[str, Any] = field(
         default_factory=lambda: {
-            "language": get_env_value(
-                "SUMMARY_LANGUAGE", DEFAULT_SUMMARY_LANGUAGE, str
-            ),
-            "entity_types": get_env_value("ENTITY_TYPES", DEFAULT_ENTITY_TYPES, list),
+            "language": str(DEFAULT_SUMMARY_LANGUAGE),
+            "entity_types": list(DEFAULT_ENTITY_TYPES),
         }
     )
 

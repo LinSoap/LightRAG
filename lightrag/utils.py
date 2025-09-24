@@ -101,58 +101,6 @@ async def safe_vdb_operation_with_exception(
                     await asyncio.sleep(retry_delay)
 
 
-def get_env_value(
-    env_key: str, default: any, value_type: type = str, special_none: bool = False
-) -> any:
-    """
-    Get value from environment variable with type conversion
-
-    Args:
-        env_key (str): Environment variable key
-        default (any): Default value if env variable is not set
-        value_type (type): Type to convert the value to
-        special_none (bool): If True, return None when value is "None"
-
-    Returns:
-        any: Converted value from environment or default
-    """
-    value = os.getenv(env_key)
-    if value is None:
-        return default
-
-    # Handle special case for "None" string
-    if special_none and value == "None":
-        return None
-
-    if value_type is bool:
-        return value.lower() in ("true", "1", "yes", "t", "on")
-
-    # Handle list type with JSON parsing
-    if value_type is list:
-        try:
-            import json
-
-            parsed_value = json.loads(value)
-            # Ensure the parsed value is actually a list
-            if isinstance(parsed_value, list):
-                return parsed_value
-            else:
-                logger.warning(
-                    f"Environment variable {env_key} is not a valid JSON list, using default"
-                )
-                return default
-        except (json.JSONDecodeError, ValueError) as e:
-            logger.warning(
-                f"Failed to parse {env_key} as JSON list: {e}, using default"
-            )
-            return default
-
-    try:
-        return value_type(value)
-    except (ValueError, TypeError):
-        return default
-
-
 # Use TYPE_CHECKING to avoid circular imports
 if TYPE_CHECKING:
     from lightrag.base import BaseKVStorage, BaseVectorStorage, QueryParam
@@ -242,76 +190,6 @@ class LightragPathFilter(logging.Filter):
         except Exception:
             # In case of any error, let the message through
             return True
-
-
-def setup_logger(
-    logger_name: str,
-    level: str = "INFO",
-    add_filter: bool = False,
-    log_file_path: str | None = None,
-    enable_file_logging: bool = True,
-):
-    """Set up a logger with console and optionally file handlers
-
-    Args:
-        logger_name: Name of the logger to set up
-        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        add_filter: Whether to add LightragPathFilter to the logger
-        log_file_path: Path to the log file. If None and file logging is enabled, defaults to lightrag.log in LOG_DIR or cwd
-        enable_file_logging: Whether to enable logging to a file (defaults to True)
-    """
-    # Configure formatters
-    detailed_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    simple_formatter = logging.Formatter("%(levelname)s: %(message)s")
-
-    logger_instance = logging.getLogger(logger_name)
-    logger_instance.setLevel(level)
-    logger_instance.handlers = []  # Clear existing handlers
-    logger_instance.propagate = False
-
-    # Add console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(simple_formatter)
-    console_handler.setLevel(level)
-    logger_instance.addHandler(console_handler)
-
-    # Add file handler by default unless explicitly disabled
-    if enable_file_logging:
-        # Get log file path
-        if log_file_path is None:
-            log_dir = os.getenv("LOG_DIR", os.getcwd())
-            log_file_path = os.path.abspath(os.path.join(log_dir, DEFAULT_LOG_FILENAME))
-
-        # Ensure log directory exists
-        os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-
-        # Get log file max size and backup count from environment variables
-        log_max_bytes = get_env_value("LOG_MAX_BYTES", DEFAULT_LOG_MAX_BYTES, int)
-        log_backup_count = get_env_value(
-            "LOG_BACKUP_COUNT", DEFAULT_LOG_BACKUP_COUNT, int
-        )
-
-        try:
-            # Add file handler
-            file_handler = logging.handlers.RotatingFileHandler(
-                filename=log_file_path,
-                maxBytes=log_max_bytes,
-                backupCount=log_backup_count,
-                encoding="utf-8",
-            )
-            file_handler.setFormatter(detailed_formatter)
-            file_handler.setLevel(level)
-            logger_instance.addHandler(file_handler)
-        except PermissionError as e:
-            logger.warning(f"Could not create log file at {log_file_path}: {str(e)}")
-            logger.warning("Continuing with console logging only")
-
-    # Add path filter if requested
-    if add_filter:
-        path_filter = LightragPathFilter()
-        logger_instance.addFilter(path_filter)
 
 
 class UnlimitedSemaphore:
@@ -1104,9 +982,9 @@ async def save_to_cache(hashing_kv, cache_data: CacheData):
         "cache_type": cache_data.cache_type,
         "chunk_id": cache_data.chunk_id if cache_data.chunk_id is not None else None,
         "original_prompt": cache_data.prompt,
-        "queryparam": cache_data.queryparam
-        if cache_data.queryparam is not None
-        else None,
+        "queryparam": (
+            cache_data.queryparam if cache_data.queryparam is not None else None
+        ),
     }
 
     logger.info(f" == LLM cache == saving: {flattened_key}")

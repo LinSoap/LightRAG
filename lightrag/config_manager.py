@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from lightrag.path_manager import get_default_storage_dir
 import os
 import json
+import threading
 
 
 class LightRAGConfig(BaseModel):
@@ -136,18 +137,45 @@ class AppConfig(BaseModel):
             pass
 
 
-def main():
-
-    print("--- 创建默认 AppConfig ---")
-    # Try to load from default storage; if missing, create default and save it.
-    app_config = AppConfig.load()
-    default_path = AppConfig._default_path()
-    if not os.path.exists(default_path):
-        print("配置文件不存在，保存默认配置到:", default_path)
-        app_config.save(default_path)
-    else:
-        print(f"已从 JSON 加载并转换为 AppConfig：{app_config}")
+# Module-level cache and lock to provide a thread-safe singleton-like access
+# to the application's `AppConfig`.
+_config_lock = threading.Lock()
+_config_instance: Optional[AppConfig] = None
 
 
-if __name__ == "__main__":
-    main()
+def get_app_config(path: Optional[str] = None) -> AppConfig:
+    """Return the cached AppConfig instance, loading it from disk on first call.
+
+    This function is thread-safe. If `path` is provided on first call it will be
+    used to load the configuration; subsequent calls ignore the `path` and
+    return the cached instance until `reload_app_config` is called.
+    """
+    global _config_instance
+    with _config_lock:
+        if _config_instance is None:
+            _config_instance = AppConfig.load(path)
+        return _config_instance
+
+
+def reload_app_config(path: Optional[str] = None) -> AppConfig:
+    """Force re-load the AppConfig from disk (or create defaults).
+
+    This replaces the module cache with a fresh instance and returns it.
+    """
+    global _config_instance
+    with _config_lock:
+        _config_instance = AppConfig.load(path)
+        return _config_instance
+
+
+def save_app_config(path: Optional[str] = None) -> None:
+    """Save the currently cached AppConfig to disk.
+
+    If no cached instance exists this will load the default instance and save
+    that. The operation is thread-safe.
+    """
+    global _config_instance
+    with _config_lock:
+        if _config_instance is None:
+            _config_instance = AppConfig.load(path)
+        _config_instance.save(path)

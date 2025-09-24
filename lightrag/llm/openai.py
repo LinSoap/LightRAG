@@ -1,3 +1,4 @@
+from lightrag.config_manager import get_app_config
 from ..utils import verbose_debug, VERBOSE_DEBUG
 import sys
 import os
@@ -69,7 +70,8 @@ def create_openai_async_client(
         An AsyncOpenAI client instance.
     """
     if not api_key:
-        api_key = os.environ["OPENAI_API_KEY"]
+        api_key = get_app_config().llm_config.LLM_BINDING_API_KEY
+        print("Using LLM API Key from config", api_key)
 
     default_headers = {
         "User-Agent": f"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_8) LightRAG/{__api_version__}",

@@ -7,14 +7,7 @@ from lightrag.api.routers.documents import create_document_routers
 from lightrag.api.routers.query import create_query_routes
 from lightrag.api.routers.graph import create_graph_routes
 from lightrag.api.routers.collection import create_collection_routes
-from lightrag.api.routers.system_routers import router as system_router
-from lightrag.api.routers.config import (
-    router as config_router,
-    initialize_config_manager,
-)
 from lightrag.api.service_manager import service_manager
-from lightrag.utils.path_config import get_global_config
-from lightrag.utils.path_manager import PathManager
 
 app = FastAPI()
 
@@ -26,12 +19,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(system_router)
 app.include_router(create_collection_routes())
 app.include_router(create_document_routers())
 app.include_router(create_query_routes())
 app.include_router(create_graph_routes())
-app.include_router(config_router)
 
 
 def find_free_port(start_port: int = 9621, max_attempts: int = 100) -> int:
@@ -68,22 +59,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def setup_path_configuration(args):
-    """设置路径配置"""
-    config = get_global_config()
-
-    if args.storage_dir:
-        config.set_storage_base_dir(args.storage_dir)
-        print(f"📁 存储目录: {args.storage_dir}")
-
-    if config.should_auto_create():
-        storage_base_dir = (
-            config.get_storage_base_dir() or PathManager.get_default_storage_dir()
-        )
-        PathManager.ensure_directory(storage_base_dir)
-        print(f"📂 工作目录: {storage_base_dir}")
-
-
 async def setup_config_management(args):
     """设置配置管理"""
     service_manager.set_running()
@@ -113,7 +88,6 @@ async def setup_config_management(args):
 async def main_async():
     """异步主函数"""
     args = parse_args()
-    setup_path_configuration(args)
     await setup_config_management(args)
 
     port = find_free_port() if args.port == 0 else args.port
