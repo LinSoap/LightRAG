@@ -1,74 +1,35 @@
-from typing import Optional, Any, Dict
-
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
 from lightrag.config_manager import (
+    EmbeddingConfig,
+    LLMConfig,
+    LightRAGConfig,
     get_app_config,
     reload_app_config,
     save_app_config,
 )
 from lightrag.lightrag_manager import LightRagManager
+from lightrag.api.schemas.common import (
+    GenericResponse,
+    AppConfigData,
+    TestResponseData,
+)
+from lightrag.api.schemas.config import (
+    LLMConfigPayload,
+    EmbeddingConfigPayload,
+    RerankConfigPayload,
+    TestPayload,
+)
 import numpy as _np
 
 
 router = APIRouter(prefix="/config", tags=["config"])
 
 
-class LLMConfigPayload(BaseModel):
-    LLM_BINDING: Optional[str] = None
-    LLM_MODEL: Optional[str] = None
-    LLM_BINDING_HOST: Optional[str] = None
-    LLM_BINDING_API_KEY: Optional[str] = None
-
-
-class EmbeddingConfigPayload(BaseModel):
-    EMBEDDING_BINDING: Optional[str] = None
-    EMBEDDING_MODEL: Optional[str] = None
-    EMBEDDING_BINDING_HOST: Optional[str] = None
-    EMBEDDING_BINDING_API_KEY: Optional[str] = None
-    EMBEDDING_DIM: Optional[int] = None
-
-
-class RerankConfigPayload(BaseModel):
-    # Rerank settings are stored under 'lightrag_config' for now; keep simple fields
-    COSINE_BETTER_THAN_THRESHOLD: Optional[float] = None
-    COSINE_THRESHOLD: Optional[float] = None
-    MAX_BATCH_SIZE: Optional[int] = None
-
-
-class GenericResponse(BaseModel):
-    """通用响应结构。"""
-
-    status: str
-    message: Optional[str] = None
-    data: Optional[Dict[str, Any]] = None
-
-
-class AppConfigResponse(BaseModel):
-    """更精确地返回 AppConfig 的三部分子配置，便于客户端使用。"""
-
-    status: str
-    lightrag_config: Dict[str, Any]
-    llm_config: Dict[str, Any]
-    embedding_config: Dict[str, Any]
-
-
-class TestPayload(BaseModel):
-    """用于 /config/test 的请求体。
-
-    target: 要测试的目标，支持 'llm' 或 'embedding'；
-    message: 发送给 LLM 的短文本或用于生成 embedding 的文本。
-    """
-
-    target: str = "llm"
-    message: Optional[str] = "你好"
-
-
 def create_config_routes():
     """Create and return config router with routes defined inside to match project style."""
 
-    @router.get("", response_model=AppConfigResponse)
+    @router.get("", response_model=GenericResponse[AppConfigData])
     async def get_config():
         """
         获取当前应用配置。
@@ -84,17 +45,18 @@ def create_config_routes():
         try:
             reload_app_config()
             cfg = get_app_config()
-            data = cfg.model_dump()
-            return AppConfigResponse(
+            return GenericResponse(
                 status="success",
-                lightrag_config=data.get("lightrag_config", {}),
-                llm_config=data.get("llm_config", {}),
-                embedding_config=data.get("embedding_config", {}),
+                data=AppConfigData(
+                    lightrag_config=cfg.lightrag_config,
+                    llm_config=cfg.llm_config,
+                    embedding_config=cfg.embedding_config,
+                ),
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.post("/llm", response_model=GenericResponse)
+    @router.post("/llm", response_model=GenericResponse[LLMConfig])
     async def configure_llm(payload: LLMConfigPayload):
         """
         更新 LLM 配置并持久化。
@@ -134,7 +96,7 @@ def create_config_routes():
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.post("/embedding", response_model=GenericResponse)
+    @router.post("/embedding", response_model=GenericResponse[EmbeddingConfig])
     async def configure_embedding(payload: EmbeddingConfigPayload):
         """
         更新 Embedding 配置并持久化。
@@ -170,7 +132,7 @@ def create_config_routes():
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.post("/rerank", response_model=GenericResponse)
+    @router.post("/rerank", response_model=GenericResponse[LightRAGConfig])
     async def configure_rerank(payload: RerankConfigPayload):
         """
         更新 rerank 相关的简易配置字段（目前写入 `lightrag_config` 下）。
@@ -190,7 +152,7 @@ def create_config_routes():
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.post("/test", response_model=GenericResponse)
+    @router.post("/test", response_model=GenericResponse[TestResponseData])
     async def test_connection(payload: TestPayload):
         """
         测试 LLM / Embedding 的连通性。
