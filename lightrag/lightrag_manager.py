@@ -1,79 +1,14 @@
 import logging
 import os
 import json
-from dotenv import load_dotenv
+from lightrag.config_manager import AppConfig
 from lightrag.kg.shared_storage import (
     finalize_share_data,
-    get_namespace_data,
     initialize_pipeline_status,
 )
 from lightrag.lightrag import LightRAG
 from lightrag.types import GPTKeywordExtractionFormat
 from lightrag.utils import EmbeddingFunc
-from lightrag.utils.path_manager import get_working_dir
-from lightrag.utils.path_config import get_global_config
-
-
-load_dotenv()
-
-
-class LightRAGConfig:
-    """Centralized configuration for LightRAG"""
-
-    # 获取全局配置实例
-    _path_config = get_global_config()
-
-    # 存储路径配置
-    WORKING_DIR = str(
-        get_working_dir(
-            workspace=_path_config.get_workspace(),
-            base_dir=_path_config.get_storage_base_dir(),
-        )
-    )
-    KV_STORAGE = "JsonKVStorage"
-    VECTOR_STORAGE = "NanoVectorDBStorage"
-    GRAPH_STORAGE = "NetworkXStorage"
-    DOC_STATUS_STORAGE = "JsonDocStatusStorage"
-    CHUNK_TOKEN_SIZE = 1200
-    CHUNK_OVERLAP_TOKEN_SIZE = 100
-    LLM_MODEL_MAX_ASYNC = 20
-    COSINE_BETTER_THAN_THRESHOLD = 0.2
-    MAX_BATCH_SIZE = 32
-    ENTITY_EXTRACT_MAX_GLEANING = 0
-    SUMMARY_TO_MAX_TOKENS = 2000
-    FORCE_LLM_SUMMARY_ON_MERGE = 10
-    EMBEDDING_MAX_TOKEN_SIZE = 8192
-    DEFAULT_LANGUAGE = "Simplified Chinese"
-    COSINE_THRESHOLD = 0.2
-    ENABLE_LLM_CACHE_FOR_ENTITY_EXTRACT = True
-    ENABLE_LLM_CACHE = True
-    MAX_PARALLEL_INSERT = 2
-    MAX_GRAPH_NODES = 1000
-    CHUNK_OVERLAP_SIZE = 100
-    SUMMARY_CONTEXT_SIZE = 12000
-    SUMMARY_MAX_TOKENS = 1200
-    MAX_ASYNC = 4
-    SUMMARY_LANGUAGE = "Simplified Chinese"
-    ENTITY_TYPES = '["Organization", "Person", "Location", "Event", "Technology", "Equipment", "Product", "Document", "Category"]'
-
-
-class LLMConfig:
-    """Centralized configuration for LLM and Embedding"""
-
-    LLM_BINDING = os.getenv("LLM_BINDING", None)  # openai, ollama
-    LLM_MODEL = os.getenv("LLM_MODEL", None)
-    LLM_BINDING_HOST = os.getenv("LLM_BINDING_HOST", None)
-    LLM_BINDING_API_KEY = os.getenv("LLM_BINDING_API_KEY", None)
-
-
-class EmbeddingConfig:
-    """Centralized configuration for Embedding"""
-
-    EMBEDDING_BINDING = os.getenv("EMBEDDING_BINDING", "openai")
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None)
-    EMBEDDING_BINDING_HOST = os.getenv("EMBEDDING_BINDING_HOST", None)
-    EMBEDDING_BINDING_API_KEY = os.getenv("EMBEDDING_BINDING_API_KEY", None)
-    EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", 1024))
 
 
 class LightRAGError(Exception):
@@ -86,63 +21,34 @@ class LightRagManager:
     """LightRAG Manager to handle LightRAG instances per collection"""
 
     def __init__(self):
+        app_config = AppConfig.load()
+
         self.logger = logging.getLogger("lightrag")
         self.rag_instances = {}
         self.config_manager = None
+        self.lightrag_config = app_config.lightrag_config
+        self.llm_config = app_config.llm_config
+        self.embedding_config = app_config.embedding_config
 
     def set_config_manager(self, config_manager):
         """设置配置管理器实例"""
         self.config_manager = config_manager
         self.logger.info("配置管理器已设置")
 
-    def get_embedding_config(self):
-        """获取Embedding配置"""
-        if self.config_manager:
-            return self.config_manager.get_embedding_config_for_rag()
-        return self._get_default_embedding_config()
-
-    def get_rerank_config(self):
-        """获取Rerank配置"""
-        if self.config_manager:
-            return self.config_manager.get_rerank_config_for_rag()
-        return self._get_default_rerank_config()
-
-    def _get_default_embedding_config(self):
-        """获取默认Embedding配置"""
-        return {
-            "binding": "ollama",
-            "model": "bge-m3:latest",
-            "dim": 1024,
-            "host": "http://localhost:11434",
-            "api_key": None,
-        }
-
-    def _get_default_rerank_config(self):
-        """获取默认Rerank配置"""
-        return {
-            "binding": "null",
-            "model": None,
-            "host": None,
-            "api_key": None,
-            "by_default": False,
-            "min_score": 0.0,
-        }
-
     async def list_collections(self):
-        if not os.path.exists(LightRAGConfig.WORKING_DIR):
+        working_dir = str(self.lightrag_config.WORKING_DIR)
+        if not os.path.exists(working_dir):
             return []
 
         collections = [
             name
-            for name in os.listdir(LightRAGConfig.WORKING_DIR)
-            if os.path.isdir(os.path.join(LightRAGConfig.WORKING_DIR, name))
+            for name in os.listdir(working_dir)
+            if os.path.isdir(os.path.join(working_dir, name))
         ]
 
         result = {}
         for name in collections:
-            status_path = os.path.join(
-                LightRAGConfig.WORKING_DIR, name, "kv_store_doc_status.json"
-            )
+            status_path = os.path.join(working_dir, name, "kv_store_doc_status.json")
             try:
                 if os.path.exists(status_path):
                     with open(status_path, "r", encoding="utf-8") as f:
@@ -161,8 +67,8 @@ class LightRagManager:
 
     async def get_rag_instance(self, collection_id) -> LightRAG | None:
         """Get or create a LightRAG instance for the given collection"""
-
-        if not os.path.exists(os.path.join(LightRAGConfig.WORKING_DIR, collection_id)):
+        working_dir = str(self.lightrag_config.WORKING_DIR)
+        if not os.path.exists(os.path.join(working_dir, collection_id)):
             return None
         if collection_id not in self.rag_instances:
             self.rag_instances[collection_id] = await self.create_lightrag_instance(
@@ -192,12 +98,12 @@ class LightRagManager:
             kwargs["timeout"] = 60
 
             return await openai_complete_if_cache(
-                LLMConfig.LLM_MODEL,
+                self.llm_config.LLM_MODEL,
                 prompt,
                 system_prompt=system_prompt,
                 history_messages=history_messages,
-                base_url=LLMConfig.LLM_BINDING_HOST,
-                api_key=LLMConfig.LLM_BINDING_API_KEY,
+                base_url=self.llm_config.LLM_BINDING_HOST,
+                api_key=self.llm_config.LLM_BINDING_API_KEY,
                 **kwargs,
             )
 
@@ -230,7 +136,7 @@ class LightRagManager:
         async def optimized_embedding_function(texts):
             try:
                 # 获取动态配置
-                embedding_config = self.get_embedding_config()
+                embedding_config = self.embedding_config.model_dump()
                 binding = embedding_config["binding"]
 
                 if binding == "ollama":
@@ -272,56 +178,54 @@ class LightRagManager:
         """
         try:
             # 获取动态配置
-            embedding_config = self.get_embedding_config()
-            rerank_config = self.get_rerank_config()
+            embedding_config = self.embedding_config.model_dump()
 
             # Generate embedding and LLM functions
             # Create embedding function with optimized configuration
             rerank_model_func = None
             embedding_func = EmbeddingFunc(
-                embedding_dim=embedding_config["dim"],
+                embedding_dim=embedding_config["EMBEDDING_DIM"],
                 func=self.create_optimized_embedding_function(),
             )
 
-            llm_func = self._create_llm_model_func(LLMConfig.LLM_BINDING)
+            llm_func = self._create_llm_model_func(self.llm_config.LLM_BINDING)
 
             rag = LightRAG(
-                working_dir=LightRAGConfig.WORKING_DIR,
+                working_dir=str(self.lightrag_config.WORKING_DIR),
                 workspace=collection_id,
                 llm_model_func=llm_func,
-                llm_model_name=LLMConfig.LLM_MODEL,
-                llm_model_max_async=LightRAGConfig.MAX_ASYNC,
-                summary_max_tokens=LightRAGConfig.SUMMARY_MAX_TOKENS,
-                summary_context_size=LightRAGConfig.SUMMARY_CONTEXT_SIZE,
-                chunk_token_size=LightRAGConfig.CHUNK_TOKEN_SIZE,
-                chunk_overlap_token_size=LightRAGConfig.CHUNK_OVERLAP_SIZE,
+                llm_model_name=self.llm_config.LLM_MODEL,
+                llm_model_max_async=self.lightrag_config.LLM_MODEL_MAX_ASYNC,
+                summary_max_tokens=self.lightrag_config.SUMMARY_MAX_TOKENS,
+                summary_context_size=self.lightrag_config.SUMMARY_CONTEXT_SIZE,
+                chunk_token_size=self.lightrag_config.CHUNK_TOKEN_SIZE,
+                chunk_overlap_token_size=self.lightrag_config.CHUNK_OVERLAP_SIZE,
                 llm_model_kwargs={},
                 embedding_func=embedding_func,
                 default_llm_timeout=60,
                 default_embedding_timeout=60,
-                kv_storage=LightRAGConfig.KV_STORAGE,
-                graph_storage=LightRAGConfig.GRAPH_STORAGE,
-                vector_storage=LightRAGConfig.VECTOR_STORAGE,
-                doc_status_storage=LightRAGConfig.DOC_STATUS_STORAGE,
+                kv_storage=self.lightrag_config.KV_STORAGE,
+                graph_storage=self.lightrag_config.GRAPH_STORAGE,
+                vector_storage=self.lightrag_config.VECTOR_STORAGE,
+                doc_status_storage=self.lightrag_config.DOC_STATUS_STORAGE,
                 vector_db_storage_cls_kwargs={
-                    "cosine_better_than_threshold": LightRAGConfig.COSINE_THRESHOLD
+                    "cosine_better_than_threshold": self.lightrag_config.COSINE_THRESHOLD
                 },
-                enable_llm_cache_for_entity_extract=LightRAGConfig.ENABLE_LLM_CACHE_FOR_ENTITY_EXTRACT,
-                enable_llm_cache=LightRAGConfig.ENABLE_LLM_CACHE,
+                enable_llm_cache_for_entity_extract=self.lightrag_config.ENABLE_LLM_CACHE_FOR_ENTITY_EXTRACT,
+                enable_llm_cache=self.lightrag_config.ENABLE_LLM_CACHE,
                 rerank_model_func=rerank_model_func,
-                max_parallel_insert=LightRAGConfig.MAX_PARALLEL_INSERT,
-                max_graph_nodes=LightRAGConfig.MAX_GRAPH_NODES,
+                max_parallel_insert=self.lightrag_config.MAX_PARALLEL_INSERT,
+                max_graph_nodes=self.lightrag_config.MAX_GRAPH_NODES,
                 addon_params={
-                    "language": LightRAGConfig.SUMMARY_LANGUAGE,
-                    "entity_types": LightRAGConfig.ENTITY_TYPES,
+                    "language": self.lightrag_config.SUMMARY_LANGUAGE,
+                    "entity_types": self.lightrag_config.ENTITY_TYPES,
                 },
-                # ollama_server_infos=LightRAGConfig.OLLAMA_SERVER_INFOS,
             )
 
             await rag.initialize_storages()
             await initialize_pipeline_status()
             await rag.check_and_migrate_data()
-            pipeline_status = await get_namespace_data("pipeline_status")
+            # pipeline_status = await get_namespace_data("pipeline_status")
             return rag
 
         except Exception as e:

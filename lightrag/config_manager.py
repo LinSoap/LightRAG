@@ -1,6 +1,6 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from lightrag.path_manager import get_default_storage_dir, get_working_dir
+from lightrag.path_manager import get_default_storage_dir
 import os
 import json
 
@@ -11,7 +11,7 @@ class LightRAGConfig(BaseModel):
     Implemented as a pydantic model (JSON-serializable).
     """
 
-    WORKING_DIR: str = Field(default_factory=lambda: str(get_working_dir()))
+    WORKING_DIR: str = Field(default_factory=lambda: str(get_default_storage_dir()))
     KV_STORAGE: str = "JsonKVStorage"
     VECTOR_STORAGE: str = "NanoVectorDBStorage"
     GRAPH_STORAGE: str = "NetworkXStorage"
