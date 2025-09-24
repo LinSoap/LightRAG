@@ -1,6 +1,6 @@
 from pathlib import Path
 import shutil
-from lightrag.api.schema.collection_schema import (
+from lightrag.api.schemas.collection import (
     CreateCollectionResponse,
     DeleteCollectionResponse,
     ListCollectionsResponse,

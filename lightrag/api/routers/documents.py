@@ -2,7 +2,7 @@ from pathlib import Path
 import shutil
 import traceback
 from typing import List
-from lightrag.api.schema.document_schema import (
+from lightrag.api.schemas.document import (
     ClearDocumentsResponse,
     DeleteDocByIdResponse,
     DeleteDocRequest,

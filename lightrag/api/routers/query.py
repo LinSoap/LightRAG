@@ -1,7 +1,7 @@
 import json
 from fastapi import APIRouter, HTTPException
 
-from lightrag.api.schema.query_schema import QueryRequest, QueryResponse
+from lightrag.api.schemas.query import QueryRequest, QueryResponse
 from ascii_colors import trace_exception
 
 from lightrag.lightrag_manager import LightRagManager

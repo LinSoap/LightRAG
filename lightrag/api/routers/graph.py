@@ -1,6 +1,6 @@
 import traceback
 from fastapi import APIRouter, HTTPException, Query, Path, Depends
-from lightrag.api.schema.graph_schema import (
+from lightrag.api.schemas.graph import (
     EntityUpdateRequest,
     RelationUpdateRequest,
 )
