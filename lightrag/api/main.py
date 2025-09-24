@@ -8,6 +8,7 @@ from lightrag.api.routers.query import create_query_routes
 from lightrag.api.routers.graph import create_graph_routes
 from lightrag.api.routers.collection import create_collection_routes
 from lightrag.api.service_manager import service_manager
+from lightrag.api.routers.config_routers import create_config_routes
 
 app = FastAPI()
 
@@ -23,6 +24,7 @@ app.include_router(create_collection_routes())
 app.include_router(create_document_routers())
 app.include_router(create_query_routes())
 app.include_router(create_graph_routes())
+app.include_router(create_config_routes())
 
 
 def find_free_port(start_port: int = 9621, max_attempts: int = 100) -> int:
@@ -59,36 +61,9 @@ def parse_args():
     return parser.parse_args()
 
 
-async def setup_config_management(args):
-    """设置配置管理"""
-    service_manager.set_running()
-    service_manager.register_shutdown_callback(lambda: print("\n🔄 执行关闭回调..."))
-    print("✅ 服务管理器已启动")
-
-    # 初始化配置管理器
-    try:
-        if args.config:
-            # 从指定配置文件加载
-            import os
-            from lightrag.config import ConfigManager
-
-            config_dir = os.path.dirname(os.path.abspath(args.config))
-            config_manager = ConfigManager(config_dir)
-            await config_manager.initialize()
-            print(f"✅ 配置管理器已启动 (配置文件: {args.config})")
-        else:
-            # 使用默认配置
-            await initialize_config_manager()
-            print("✅ 配置管理器已启动 (默认配置)")
-    except Exception as e:
-        print(f"⚠️ 配置管理器启动失败: {str(e)}")
-        print("💡 配置API将不可用，但其他功能正常工作")
-
-
 async def main_async():
     """异步主函数"""
     args = parse_args()
-    await setup_config_management(args)
 
     port = find_free_port() if args.port == 0 else args.port
     print(f"🚀 LightRAG 启动: http://{args.host}:{port}")
