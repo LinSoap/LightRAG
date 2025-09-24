@@ -3,6 +3,8 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query, Path, Depends
 from lightrag.api.schemas.graph import (
     EntityUpdateRequest,
+    GraphEdge,
+    GraphNode,
     RelationUpdateRequest,
     GraphLabelsData,
     GraphData,
@@ -25,15 +27,16 @@ async def get_rag_manager():
     return LightRagManager()
 
 
-async def get_rag_instance(collection_id: str, manager: LightRagManager = Depends(get_rag_manager)):
+async def get_rag_instance(
+    collection_id: str, manager: LightRagManager = Depends(get_rag_manager)
+):
     """Dependency to get RAG instance for a collection"""
     return await manager.get_rag_instance(collection_id)
 
 
 @router.get("/label", response_model=GenericResponse[GraphLabelsData])
 async def get_graph_labels(
-    collection_id: str,
-    rag=Depends(get_rag_instance)
+    collection_id: str, rag=Depends(get_rag_instance)
 ) -> GenericResponse[GraphLabelsData]:
     """
     Get all graph labels
@@ -43,14 +46,9 @@ async def get_graph_labels(
     """
     try:
         labels = await rag.get_graph_labels()
-        data = GraphLabelsData(
-            labels=labels,
-            total_labels=len(labels)
-        )
+        data = GraphLabelsData(labels=labels, total_labels=len(labels))
         return GenericResponse(
-            status="success",
-            message=f"Found {len(labels)} graph labels",
-            data=data
+            status="success", message=f"Found {len(labels)} graph labels", data=data
         )
     except Exception as e:
         logger.error(f"Error getting graph labels: {str(e)}")
@@ -66,7 +64,7 @@ async def get_knowledge_graph(
     label: str = Query(..., description="Label to get knowledge graph for"),
     max_depth: int = Query(3, description="Maximum depth of graph", ge=1),
     max_nodes: int = Query(1000, description="Maximum nodes to return", ge=1),
-    rag=Depends(get_rag_instance)
+    rag=Depends(get_rag_instance),
 ) -> GenericResponse[GraphData]:
     """
     Retrieve a connected subgraph of nodes where the label includes the specified label.
@@ -94,23 +92,42 @@ async def get_knowledge_graph(
         )
 
         # Convert graph result to our data models
-        nodes = [GraphNode(id=node.id, label=node.label, properties=node.properties) for node in graph_result.nodes]
-        edges = [GraphEdge(source=edge.source, target=edge.target, type=edge.type, properties=edge.properties) for edge in graph_result.edges]
+        nodes = [
+            GraphNode(
+                id=node.id,
+                label=node.labels[0] if hasattr(node, 'labels') and isinstance(node.labels, list) and node.labels else str(node.labels),
+                properties=node.properties
+            )
+            for node in graph_result.nodes
+        ]
+        edges = [
+            GraphEdge(
+                source=edge.source,
+                target=edge.target,
+                type=edge.type,
+                properties=edge.properties,
+            )
+            for edge in graph_result.edges
+        ]
 
         data = GraphData(
             nodes=nodes,
             edges=edges,
             total_nodes=len(nodes),
             total_edges=len(edges),
-            max_depth_reached=graph_result.max_depth if hasattr(graph_result, 'max_depth') else max_depth,
+            max_depth_reached=(
+                graph_result.max_depth
+                if hasattr(graph_result, "max_depth")
+                else max_depth
+            ),
             query_label=label,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         return GenericResponse(
             status="success",
             message=f"Retrieved knowledge graph for label '{label}' with {len(nodes)} nodes and {len(edges)} edges",
-            data=data
+            data=data,
         )
     except Exception as e:
         logger.error(f"Error getting knowledge graph for label '{label}': {str(e)}")
@@ -124,7 +141,7 @@ async def get_knowledge_graph(
 async def check_entity_exists(
     collection_id: str,
     name: str = Query(..., description="Entity name to check"),
-    rag=Depends(get_rag_instance)
+    rag=Depends(get_rag_instance),
 ) -> GenericResponse[EntityExistsData]:
     """
     Check if an entity with the given name exists in the knowledge graph
@@ -162,13 +179,13 @@ async def check_entity_exists(
             entity_name=name,
             node_count=node_count,
             edge_count=edge_count,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         return GenericResponse(
             status="success",
             message=f"Entity '{name}' existence check completed",
-            data=data
+            data=data,
         )
     except Exception as e:
         logger.error(f"Error checking entity existence for '{name}': {str(e)}")
@@ -180,9 +197,7 @@ async def check_entity_exists(
 
 @router.post("/entity", response_model=GenericResponse[EntityUpdateData])
 async def update_entity(
-    collection_id: str,
-    request: EntityUpdateRequest,
-    rag=Depends(get_rag_instance)
+    collection_id: str, request: EntityUpdateRequest, rag=Depends(get_rag_instance)
 ) -> GenericResponse[EntityUpdateData]:
     """
     Update an entity's properties in the knowledge graph
@@ -216,13 +231,11 @@ async def update_entity(
             was_renamed=was_renamed,
             old_name=old_name,
             new_name=new_name,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         return GenericResponse(
-            status="success",
-            message="Entity updated successfully",
-            data=data
+            status="success", message="Entity updated successfully", data=data
         )
     except ValueError as ve:
         logger.error(
@@ -232,16 +245,12 @@ async def update_entity(
     except Exception as e:
         logger.error(f"Error updating entity '{request.entity_name}': {str(e)}")
         logger.error(traceback.format_exc())
-        raise HTTPException(
-            status_code=500, detail=f"Error updating entity: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error updating entity: {str(e)}")
 
 
 @router.post("/relation", response_model=GenericResponse[RelationUpdateData])
 async def update_relation(
-    collection_id: str,
-    request: RelationUpdateRequest,
-    rag=Depends(get_rag_instance)
+    collection_id: str, request: RelationUpdateRequest, rag=Depends(get_rag_instance)
 ) -> GenericResponse[RelationUpdateData]:
     """
     Update a relation's properties in the knowledge graph
@@ -264,13 +273,11 @@ async def update_relation(
             target_id=request.target_id,
             relation_type=result.get("type", "unknown"),
             updated_properties=result.get("properties", {}),
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         return GenericResponse(
-            status="success",
-            message="Relation updated successfully",
-            data=data
+            status="success", message="Relation updated successfully", data=data
         )
     except ValueError as ve:
         logger.error(
