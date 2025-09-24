@@ -1,13 +1,18 @@
 from typing import Any, Dict, List, Literal, Optional
+from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
 from lightrag.base import QueryParam
 
 
-class QueryResponse(BaseModel):
-    response: str = Field(
-        description="The generated response",
-    )
+class QueryData(BaseModel):
+    response: str = Field(description="The generated response")
+    query_mode: str = Field(description="The query mode used")
+    response_type: Optional[str] = Field(description="The response format type")
+    query_time: Optional[float] = Field(description="Query execution time in seconds")
+    sources_count: Optional[int] = Field(description="Number of sources used")
+    conversation_turns: Optional[int] = Field(description="Number of conversation turns considered")
+    timestamp: datetime = Field(description="Query timestamp")
 
 
 class QueryRequest(BaseModel):
