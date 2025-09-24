@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -67,17 +67,18 @@ class CollectionItem(BaseModel):
     )
 
 
-class ListCollectionsResponse(BaseModel):
-    status: Literal["success", "fail"] = Field(..., description="Operation status")
+# 数据模型用于GenericResponse
+class CollectionsListData(BaseModel):
+    """集合列表数据"""
     collections: List[CollectionItem] = Field(
         default_factory=list,
         description="List of collections with their documents",
     )
+    total_collections: int = Field(0, description="Total number of collections")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "status": "success",
                 "collections": [
                     {
                         "collection_id": "didi",
@@ -106,31 +107,36 @@ class ListCollectionsResponse(BaseModel):
                         ],
                     }
                 ],
+                "total_collections": 1
             }
         }
 
 
-class CreateCollectionResponse(BaseModel):
-    status: Literal["success", "fail"] = Field(..., description="Operation status")
-    message: str = Field(..., description="Human readable message")
+class CollectionCreateData(BaseModel):
+    """集合创建结果数据"""
+    collection_id: str = Field(..., description="Created collection identifier")
+    created_at: Optional[str] = Field(None, description="Creation timestamp (ISO string)")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "status": "success",
-                "message": "Collection 'my_collection' created successfully.",
+                "collection_id": "my_collection",
+                "created_at": "2025-09-11T00:28:26.700465+00:00"
             }
         }
 
 
-class DeleteCollectionResponse(BaseModel):
-    status: Literal["success", "fail"] = Field(..., description="Operation status")
-    message: str = Field(..., description="Human readable message")
+class CollectionDeleteData(BaseModel):
+    """集合删除结果数据"""
+    collection_id: str = Field(..., description="Deleted collection identifier")
+    deleted_documents_count: int = Field(0, description="Number of documents deleted")
+    workspace_cleared: bool = Field(False, description="Whether workspace was cleared")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "status": "success",
-                "message": "Collection 'my_collection' deleted successfully.",
+                "collection_id": "my_collection",
+                "deleted_documents_count": 5,
+                "workspace_cleared": True
             }
         }
