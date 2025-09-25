@@ -92,6 +92,7 @@ class RerankConfig(BaseModel):
     """Centralized configuration for Rerank functionality"""
 
     ENABLE_RERANK: bool = True
+    RERANK_BINDING: Optional[str] = None  # null, cohere, jina, aliyun
     RERANK_MODEL: Optional[str] = None
     RERANK_BINDING_HOST: Optional[str] = None
     RERANK_BINDING_API_KEY: Optional[str] = None
