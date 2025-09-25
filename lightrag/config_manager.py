@@ -33,7 +33,7 @@ class LightRAGConfig(BaseModel):
     MAX_GRAPH_NODES: int = 1000
     CHUNK_OVERLAP_SIZE: int = 100
     SUMMARY_CONTEXT_SIZE: int = 12000
-    SUMMARY_MAX_TOKENS: int = 1200
+    SUMMARY_MAX_TOKENS: int = 3000
     MAX_ASYNC: int = 4
     SUMMARY_LANGUAGE: str = "Simplified Chinese"
     # store as list for easier programmatic use; if you want to keep the JSON string,
@@ -85,6 +85,7 @@ class EmbeddingConfig(BaseModel):
     EMBEDDING_BATCH_NUM: int = 10
     EMBEDDING_FUNC_MAX_ASYNC: int = 8
     EMBEDDING_MAX_TOKEN_SIZE: int = 8192
+    EMBEDDING_TIMEOUT: int = 240
 
 
 class RerankConfig(BaseModel):

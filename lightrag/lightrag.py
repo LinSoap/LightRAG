@@ -142,7 +142,7 @@ class LightRAG:
     max_total_tokens: int = field(default_factory=lambda: get_app_config().lightrag_config.MAX_TOTAL_TOKENS)
     """Maximum total tokens in context (including system prompt, entities, relations and chunks)."""
 
-    cosine_threshold: int = field(default_factory=lambda: get_app_config().lightrag_config.COSINE_THRESHOLD)
+    cosine_threshold: float = field(default_factory=lambda: get_app_config().lightrag_config.COSINE_THRESHOLD)
     """Cosine threshold of vector DB retrieval for entities, relations and chunks."""
 
     related_chunk_number: int = field(default=int(DEFAULT_RELATED_CHUNK_NUMBER))
@@ -240,7 +240,7 @@ class LightRAG:
     """
 
     default_embedding_timeout: int = field(
-        default_factory=lambda: get_app_config().embedding_config.EMBEDDING_MAX_TOKEN_SIZE
+        default_factory=lambda: get_app_config().embedding_config.EMBEDDING_TIMEOUT
     )
 
     # LLM Configuration
