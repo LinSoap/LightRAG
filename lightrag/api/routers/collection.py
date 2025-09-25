@@ -9,6 +9,7 @@ from lightrag.api.schemas.collection import (
     DocumentItem,
 )
 from lightrag.api.schemas.common import GenericResponse
+from lightrag.path_manager import get_default_storage_dir
 from lightrag.document_manager import DocumentManager
 from lightrag.lightrag_manager import LightRagManager
 from fastapi import APIRouter, HTTPException, Query
@@ -98,7 +99,7 @@ def create_collection_routes():
     @router.delete("", response_model=GenericResponse[CollectionDeleteData])
     async def clear_documents(collection_id: str):
         rag = await lightrag_manager.get_rag_instance(collection_id)
-        doc_manager = DocumentManager(input_dir="./inputs", workspace=collection_id)
+        doc_manager = DocumentManager(input_dir=str(get_default_storage_dir() / "inputs"), workspace=collection_id)
 
         workspace_dir = rag.working_dir + f"/{collection_id}"
         input_dir = doc_manager.input_dir

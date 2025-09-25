@@ -3,6 +3,7 @@ import shutil
 import traceback
 from typing import List
 from datetime import datetime
+from lightrag.path_manager import get_default_storage_dir
 from lightrag.api.schemas.document import (
     DeleteDocRequest,
     DocumentItem,
@@ -158,7 +159,7 @@ def create_document_routers() -> APIRouter:
     ) -> GenericResponse[DocumentUploadData]:
         try:
             # Sanitize filename to prevent Path Traversal attacks
-            doc_manager = DocumentManager(input_dir="./inputs", workspace=collection_id)
+            doc_manager = DocumentManager(input_dir=str(get_default_storage_dir() / "inputs"), workspace=collection_id)
 
             rag = await lightrag_manager.create_lightrag_instance(collection_id)
 
@@ -454,7 +455,7 @@ def create_document_routers() -> APIRouter:
         """
         doc_ids = delete_request.doc_ids
         rag = await lightrag_manager.get_rag_instance(collection_id)
-        doc_manager = DocumentManager(input_dir="./inputs", workspace=collection_id)
+        doc_manager = DocumentManager(input_dir=str(get_default_storage_dir() / "inputs"), workspace=collection_id)
 
         # The rag object is initialized from the server startup args,
         # so we can access its properties here.
