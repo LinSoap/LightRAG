@@ -73,3 +73,7 @@ test_*
 memory-bank
 memory-bank/
 .clinerules
+
+# Documentation analysis files (except project intro)
+docs/*.md
+!docs/项目介绍.md
