@@ -97,12 +97,7 @@ from .utils import (
 )
 from .path_manager import get_default_storage_dir
 from .types import KnowledgeGraph
-from dotenv import load_dotenv
-
-# use the .env that is inside the current folder
-# allows to use different .env file for each lightrag instance
-# the OS environment variables take precedence over the .env file
-load_dotenv(dotenv_path=".env", override=False)
+from .config_manager import get_app_config
 
 # TODO: TO REMOVE @Yannick
 config = configparser.ConfigParser()
@@ -138,7 +133,7 @@ class LightRAG:
     # Workspace
     # ---
 
-    workspace: str = field(default_factory=lambda: os.getenv("WORKSPACE", ""))
+    workspace: str = field(default_factory=lambda: get_app_config().lightrag_config.WORKING_DIR)
     """Workspace for data isolation. Defaults to empty string if WORKSPACE environment variable is not set."""
 
     # Logging (Deprecated, use setup_logger in utils.py instead)
@@ -186,11 +181,11 @@ class LightRAG:
     # Text chunking
     # ---
 
-    chunk_token_size: int = field(default=int(os.getenv("CHUNK_SIZE", 1200)))
+    chunk_token_size: int = field(default_factory=lambda: get_app_config().lightrag_config.CHUNK_TOKEN_SIZE)
     """Maximum number of tokens per text chunk when splitting documents."""
 
     chunk_overlap_token_size: int = field(
-        default=int(os.getenv("CHUNK_OVERLAP_SIZE", 100))
+        default_factory=lambda: get_app_config().lightrag_config.CHUNK_OVERLAP_SIZE
     )
     """Number of overlapping tokens between consecutive text chunks to preserve context."""
 
@@ -240,11 +235,11 @@ class LightRAG:
     embedding_func: EmbeddingFunc | None = field(default=None)
     """Function for computing text embeddings. Must be set before use."""
 
-    embedding_batch_num: int = field(default=int(os.getenv("EMBEDDING_BATCH_NUM", 10)))
+    embedding_batch_num: int = field(default_factory=lambda: get_app_config().embedding_config.EMBEDDING_BATCH_NUM)
     """Batch size for embedding computations."""
 
     embedding_func_max_async: int = field(
-        default=int(os.getenv("EMBEDDING_FUNC_MAX_ASYNC", 8))
+        default_factory=lambda: get_app_config().embedding_config.EMBEDDING_FUNC_MAX_ASYNC
     )
     """Maximum number of concurrent embedding function calls."""
 
@@ -262,7 +257,7 @@ class LightRAG:
     """
 
     default_embedding_timeout: int = field(
-        default=int(os.getenv("EMBEDDING_TIMEOUT", DEFAULT_EMBEDDING_TIMEOUT))
+        default_factory=lambda: get_app_config().embedding_config.EMBEDDING_MAX_TOKEN_SIZE
     )
 
     # LLM Configuration
@@ -275,24 +270,22 @@ class LightRAG:
     """Name of the LLM model used for generating responses."""
 
     summary_max_tokens: int = field(
-        default=int(os.getenv("SUMMARY_MAX_TOKENS", DEFAULT_SUMMARY_MAX_TOKENS))
+        default_factory=lambda: get_app_config().lightrag_config.SUMMARY_MAX_TOKENS
     )
     """Maximum tokens allowed for entity/relation description."""
 
     summary_context_size: int = field(
-        default=int(os.getenv("SUMMARY_CONTEXT_SIZE", DEFAULT_SUMMARY_CONTEXT_SIZE))
+        default_factory=lambda: get_app_config().lightrag_config.SUMMARY_CONTEXT_SIZE
     )
     """Maximum number of tokens allowed per LLM response."""
 
     summary_length_recommended: int = field(
-        default=int(
-            os.getenv("SUMMARY_LENGTH_RECOMMENDED", DEFAULT_SUMMARY_LENGTH_RECOMMENDED)
-        )
+        default_factory=lambda: get_app_config().lightrag_config.SUMMARY_TO_MAX_TOKENS
     )
     """Recommended length of LLM summary output."""
 
     llm_model_max_async: int = field(
-        default=int(os.getenv("MAX_ASYNC", DEFAULT_MAX_ASYNC))
+        default_factory=lambda: get_app_config().lightrag_config.MAX_ASYNC
     )
     """Maximum number of concurrent LLM calls."""
 
@@ -300,7 +293,7 @@ class LightRAG:
     """Additional keyword arguments passed to the LLM model function."""
 
     default_llm_timeout: int = field(
-        default=int(os.getenv("LLM_TIMEOUT", DEFAULT_LLM_TIMEOUT))
+        default_factory=lambda: get_app_config().llm_config.LLM_TIMEOUT
     )
 
     # Rerank Configuration
@@ -328,7 +321,7 @@ class LightRAG:
     # ---
 
     max_parallel_insert: int = field(
-        default=int(os.getenv("MAX_PARALLEL_INSERT", DEFAULT_MAX_PARALLEL_INSERT))
+        default_factory=lambda: get_app_config().lightrag_config.MAX_PARALLEL_INSERT
     )
     """Maximum number of parallel insert operations."""
 
@@ -350,7 +343,7 @@ class LightRAG:
     """If True, lightrag will automatically calls initialize_storages and finalize_storages at the appropriate times."""
 
     cosine_better_than_threshold: float = field(
-        default=float(os.getenv("COSINE_THRESHOLD", 0.2))
+        default_factory=lambda: get_app_config().lightrag_config.COSINE_BETTER_THAN_THRESHOLD
     )
 
     ollama_server_infos: Optional[OllamaServerInfos] = field(default=None)
