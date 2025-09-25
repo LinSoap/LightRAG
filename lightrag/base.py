@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-import os
-from dotenv import load_dotenv
+from .config_manager import get_app_config
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -29,19 +28,14 @@ from .constants import (
     DEFAULT_OLLAMA_DIGEST,
 )
 
-# use the .env that is inside the current folder
-# allows to use different .env file for each lightrag instance
-# the OS environment variables take precedence over the .env file
-load_dotenv(dotenv_path=".env", override=False)
-
 
 class OllamaServerInfos:
     def __init__(self, name=None, tag=None):
-        self._lightrag_name = name or os.getenv(
-            "OLLAMA_EMULATING_MODEL_NAME", DEFAULT_OLLAMA_MODEL_NAME
+        self._lightrag_name = (
+            name or get_app_config().lightrag_config.OLLAMA_EMULATING_MODEL_NAME
         )
-        self._lightrag_tag = tag or os.getenv(
-            "OLLAMA_EMULATING_MODEL_TAG", DEFAULT_OLLAMA_MODEL_TAG
+        self._lightrag_tag = (
+            tag or get_app_config().lightrag_config.OLLAMA_EMULATING_MODEL_TAG
         )
         self.LIGHTRAG_SIZE = DEFAULT_OLLAMA_MODEL_SIZE
         self.LIGHTRAG_CREATED_AT = DEFAULT_OLLAMA_CREATED_AT
@@ -103,26 +97,28 @@ class QueryParam:
     stream: bool = False
     """If True, enables streaming output for real-time responses."""
 
-    top_k: int = int(os.getenv("TOP_K", str(DEFAULT_TOP_K)))
+    top_k: int = field(default_factory=lambda: get_app_config().lightrag_config.TOP_K)
     """Number of top items to retrieve. Represents entities in 'local' mode and relationships in 'global' mode."""
 
-    chunk_top_k: int = int(os.getenv("CHUNK_TOP_K", str(DEFAULT_CHUNK_TOP_K)))
+    chunk_top_k: int = field(
+        default_factory=lambda: get_app_config().lightrag_config.CHUNK_TOP_K
+    )
     """Number of text chunks to retrieve initially from vector search and keep after reranking.
     If None, defaults to top_k value.
     """
 
-    max_entity_tokens: int = int(
-        os.getenv("MAX_ENTITY_TOKENS", str(DEFAULT_MAX_ENTITY_TOKENS))
+    max_entity_tokens: int = field(
+        default_factory=lambda: get_app_config().lightrag_config.MAX_ENTITY_TOKENS
     )
     """Maximum number of tokens allocated for entity context in unified token control system."""
 
-    max_relation_tokens: int = int(
-        os.getenv("MAX_RELATION_TOKENS", str(DEFAULT_MAX_RELATION_TOKENS))
+    max_relation_tokens: int = field(
+        default_factory=lambda: get_app_config().lightrag_config.MAX_RELATION_TOKENS
     )
     """Maximum number of tokens allocated for relationship context in unified token control system."""
 
-    max_total_tokens: int = int(
-        os.getenv("MAX_TOTAL_TOKENS", str(DEFAULT_MAX_TOTAL_TOKENS))
+    max_total_tokens: int = field(
+        default_factory=lambda: get_app_config().lightrag_config.MAX_TOTAL_TOKENS
     )
     """Maximum total tokens budget for the entire query context (entities + relations + chunks + system prompt)."""
 
@@ -139,7 +135,9 @@ class QueryParam:
     """
 
     # TODO: Deprecated - history message have negtive effect on query performance
-    history_turns: int = int(os.getenv("HISTORY_TURNS", str(DEFAULT_HISTORY_TURNS)))
+    history_turns: int = field(
+        default_factory=lambda: get_app_config().lightrag_config.HISTORY_TURNS
+    )
     """Number of complete conversation turns (user-assistant pairs) to consider in the response context."""
 
     model_func: Callable[..., object] | None = None
@@ -153,7 +151,9 @@ class QueryParam:
     If proivded, this will be use instead of the default vaulue from prompt template.
     """
 
-    enable_rerank: bool = os.getenv("RERANK_BY_DEFAULT", "true").lower() == "true"
+    enable_rerank: bool = field(
+        default_factory=lambda: get_app_config().rerank_config.ENABLE_RERANK
+    )
     """Enable reranking for retrieved text chunks. If True but no rerank model is configured, a warning will be issued.
     Default is True to enable reranking when rerank model is available.
     """

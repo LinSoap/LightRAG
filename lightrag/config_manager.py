@@ -58,6 +58,9 @@ class LightRAGConfig(BaseModel):
     MAX_ENTITY_TOKENS: int = 10000
     MAX_RELATION_TOKENS: int = 10000
     MAX_TOTAL_TOKENS: int = 30000
+    HISTORY_TURNS: int = 0
+    OLLAMA_EMULATING_MODEL_NAME: str = "lightrag"
+    OLLAMA_EMULATING_MODEL_TAG: str = "latest"
 
 
 class LLMConfig(BaseModel):
