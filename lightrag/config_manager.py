@@ -25,7 +25,6 @@ class LightRAGConfig(BaseModel):
     ENTITY_EXTRACT_MAX_GLEANING: int = 0
     SUMMARY_TO_MAX_TOKENS: int = 2000
     FORCE_LLM_SUMMARY_ON_MERGE: int = 10
-    EMBEDDING_MAX_TOKEN_SIZE: int = 8192
     DEFAULT_LANGUAGE: str = "Simplified Chinese"
     COSINE_THRESHOLD: float = 0.2
     ENABLE_LLM_CACHE_FOR_ENTITY_EXTRACT: bool = True
@@ -53,14 +52,22 @@ class LightRAGConfig(BaseModel):
         ]
     )
 
+    # Query control configuration
+    TOP_K: int = 30
+    CHUNK_TOP_K: int = 10
+    MAX_ENTITY_TOKENS: int = 10000
+    MAX_RELATION_TOKENS: int = 10000
+    MAX_TOTAL_TOKENS: int = 30000
+
 
 class LLMConfig(BaseModel):
-    """Centralized configuration for LLM and Embedding"""
+    """Centralized configuration for LLM"""
 
     LLM_BINDING: Optional[str] = None  # openai, ollama
     LLM_MODEL: Optional[str] = None
     LLM_BINDING_HOST: Optional[str] = None
     LLM_BINDING_API_KEY: Optional[str] = None
+    LLM_TIMEOUT: int = 240
 
 
 class EmbeddingConfig(BaseModel):
@@ -71,6 +78,19 @@ class EmbeddingConfig(BaseModel):
     EMBEDDING_BINDING_HOST: Optional[str] = None
     EMBEDDING_BINDING_API_KEY: Optional[str] = None
     EMBEDDING_DIM: int = 1024
+    EMBEDDING_BATCH_NUM: int = 10
+    EMBEDDING_FUNC_MAX_ASYNC: int = 8
+    EMBEDDING_MAX_TOKEN_SIZE: int = 8192
+
+
+class RerankConfig(BaseModel):
+    """Centralized configuration for Rerank functionality"""
+
+    ENABLE_RERANK: bool = True
+    RERANK_MODEL: Optional[str] = None
+    RERANK_BINDING_HOST: Optional[str] = None
+    RERANK_BINDING_API_KEY: Optional[str] = None
+    MIN_RERANK_SCORE: float = 0.6
 
 
 class AppConfig(BaseModel):
@@ -88,6 +108,7 @@ class AppConfig(BaseModel):
     lightrag_config: LightRAGConfig = Field(default_factory=LightRAGConfig)
     llm_config: LLMConfig = Field(default_factory=LLMConfig)
     embedding_config: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+    rerank_config: RerankConfig = Field(default_factory=RerankConfig)
 
     @classmethod
     def _default_path(cls) -> str:
