@@ -9,6 +9,8 @@ import json_repair
 from typing import Any, AsyncIterator
 from collections import Counter, defaultdict
 
+from .config_manager import get_app_config
+
 from .utils import (
     logger,
     compute_mdhash_id,
@@ -43,13 +45,8 @@ from .base import (
 from .prompt import PROMPTS
 from .constants import (
     GRAPH_FIELD_SEP,
-    DEFAULT_MAX_ENTITY_TOKENS,
-    DEFAULT_MAX_RELATION_TOKENS,
-    DEFAULT_MAX_TOTAL_TOKENS,
     DEFAULT_RELATED_CHUNK_NUMBER,
     DEFAULT_KG_CHUNK_PICK_METHOD,
-    DEFAULT_ENTITY_TYPES,
-    DEFAULT_SUMMARY_LANGUAGE,
 )
 from .kg.shared_storage import get_storage_keyed_lock
 import time
@@ -264,7 +261,7 @@ async def _summarize_descriptions(
     # Apply higher priority (8) to entity/relation summary tasks
     use_llm_func = partial(use_llm_func, _priority=8)
 
-    language = global_config["addon_params"].get("language", DEFAULT_SUMMARY_LANGUAGE)
+    language = global_config["addon_params"].get("language", get_app_config().lightrag_config.SUMMARY_LANGUAGE)
 
     summary_length_recommended = global_config["summary_length_recommended"]
 
@@ -1902,9 +1899,9 @@ async def extract_entities(
 
     ordered_chunks = list(chunks.items())
     # add language and example number params to prompt
-    language = global_config["addon_params"].get("language", DEFAULT_SUMMARY_LANGUAGE)
+    language = global_config["addon_params"].get("language", get_app_config().lightrag_config.SUMMARY_LANGUAGE)
     entity_types = global_config["addon_params"].get(
-        "entity_types", DEFAULT_ENTITY_TYPES
+        "entity_types", get_app_config().lightrag_config.ENTITY_TYPES
     )
 
     examples = "\n".join(PROMPTS["entity_extraction_examples"])
@@ -2326,7 +2323,7 @@ async def extract_keywords_only(
     # 2. Build the examples
     examples = "\n".join(PROMPTS["keywords_extraction_examples"])
 
-    language = global_config["addon_params"].get("language", DEFAULT_SUMMARY_LANGUAGE)
+    language = global_config["addon_params"].get("language", get_app_config().lightrag_config.SUMMARY_LANGUAGE)
 
     # 3. Process conversation history
     # history_context = ""
@@ -2686,20 +2683,20 @@ async def _build_query_context(
         query_param,
         "max_entity_tokens",
         text_chunks_db.global_config.get(
-            "max_entity_tokens", DEFAULT_MAX_ENTITY_TOKENS
+            "max_entity_tokens", get_app_config().lightrag_config.MAX_ENTITY_TOKENS
         ),
     )
     max_relation_tokens = getattr(
         query_param,
         "max_relation_tokens",
         text_chunks_db.global_config.get(
-            "max_relation_tokens", DEFAULT_MAX_RELATION_TOKENS
+            "max_relation_tokens", get_app_config().lightrag_config.MAX_RELATION_TOKENS
         ),
     )
     max_total_tokens = getattr(
         query_param,
         "max_total_tokens",
-        text_chunks_db.global_config.get("max_total_tokens", DEFAULT_MAX_TOTAL_TOKENS),
+        text_chunks_db.global_config.get("max_total_tokens", get_app_config().lightrag_config.MAX_TOTAL_TOKENS),
     )
 
     # Truncate entities based on complete JSON serialization
@@ -3625,7 +3622,7 @@ async def naive_query(
     max_total_tokens = getattr(
         query_param,
         "max_total_tokens",
-        global_config.get("max_total_tokens", DEFAULT_MAX_TOTAL_TOKENS),
+        global_config.get("max_total_tokens", get_app_config().lightrag_config.MAX_TOTAL_TOKENS),
     )
 
     # Calculate conversation history tokens

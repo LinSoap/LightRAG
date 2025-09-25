@@ -23,26 +23,9 @@ from typing import (
 )
 from lightrag.constants import (
     DEFAULT_MAX_GLEANING,
-    DEFAULT_FORCE_LLM_SUMMARY_ON_MERGE,
-    DEFAULT_TOP_K,
-    DEFAULT_CHUNK_TOP_K,
-    DEFAULT_MAX_ENTITY_TOKENS,
-    DEFAULT_MAX_RELATION_TOKENS,
-    DEFAULT_MAX_TOTAL_TOKENS,
-    DEFAULT_COSINE_THRESHOLD,
     DEFAULT_RELATED_CHUNK_NUMBER,
     DEFAULT_KG_CHUNK_PICK_METHOD,
-    DEFAULT_MIN_RERANK_SCORE,
-    DEFAULT_SUMMARY_MAX_TOKENS,
-    DEFAULT_SUMMARY_CONTEXT_SIZE,
     DEFAULT_SUMMARY_LENGTH_RECOMMENDED,
-    DEFAULT_MAX_ASYNC,
-    DEFAULT_MAX_PARALLEL_INSERT,
-    DEFAULT_MAX_GRAPH_NODES,
-    DEFAULT_ENTITY_TYPES,
-    DEFAULT_SUMMARY_LANGUAGE,
-    DEFAULT_LLM_TIMEOUT,
-    DEFAULT_EMBEDDING_TIMEOUT,
 )
 
 from lightrag.kg import (
@@ -144,22 +127,22 @@ class LightRAG:
     # Query parameters
     # ---
 
-    top_k: int = field(default=int(DEFAULT_TOP_K))
+    top_k: int = field(default_factory=lambda: get_app_config().lightrag_config.TOP_K)
     """Number of entities/relations to retrieve for each query."""
 
-    chunk_top_k: int = field(default=int(DEFAULT_CHUNK_TOP_K))
+    chunk_top_k: int = field(default_factory=lambda: get_app_config().lightrag_config.CHUNK_TOP_K)
     """Maximum number of chunks in context."""
 
-    max_entity_tokens: int = field(default=int(DEFAULT_MAX_ENTITY_TOKENS))
+    max_entity_tokens: int = field(default_factory=lambda: get_app_config().lightrag_config.MAX_ENTITY_TOKENS)
     """Maximum number of tokens for entity in context."""
 
-    max_relation_tokens: int = field(default=int(DEFAULT_MAX_RELATION_TOKENS))
+    max_relation_tokens: int = field(default_factory=lambda: get_app_config().lightrag_config.MAX_RELATION_TOKENS)
     """Maximum number of tokens for relation in context."""
 
-    max_total_tokens: int = field(default=int(DEFAULT_MAX_TOTAL_TOKENS))
+    max_total_tokens: int = field(default_factory=lambda: get_app_config().lightrag_config.MAX_TOTAL_TOKENS)
     """Maximum total tokens in context (including system prompt, entities, relations and chunks)."""
 
-    cosine_threshold: int = field(default=int(DEFAULT_COSINE_THRESHOLD))
+    cosine_threshold: int = field(default_factory=lambda: get_app_config().lightrag_config.COSINE_THRESHOLD)
     """Cosine threshold of vector DB retrieval for entities, relations and chunks."""
 
     related_chunk_number: int = field(default=int(DEFAULT_RELATED_CHUNK_NUMBER))
@@ -175,7 +158,7 @@ class LightRAG:
     """Maximum number of entity extraction attempts for ambiguous content."""
 
     force_llm_summary_on_merge: int = field(
-        default=int(DEFAULT_FORCE_LLM_SUMMARY_ON_MERGE)
+        default_factory=lambda: get_app_config().lightrag_config.FORCE_LLM_SUMMARY_ON_MERGE
     )
 
     # Text chunking
@@ -302,7 +285,7 @@ class LightRAG:
     rerank_model_func: Callable[..., object] | None = field(default=None)
     """Function for reranking retrieved documents. All rerank configurations (model name, API keys, top_k, etc.) should be included in this function. Optional."""
 
-    min_rerank_score: float = field(default=float(DEFAULT_MIN_RERANK_SCORE))
+    min_rerank_score: float = field(default_factory=lambda: get_app_config().rerank_config.MIN_RERANK_SCORE)
     """Minimum rerank score threshold for filtering chunks after reranking."""
 
     # Storage
@@ -325,13 +308,15 @@ class LightRAG:
     )
     """Maximum number of parallel insert operations."""
 
-    max_graph_nodes: int = field(default=int(DEFAULT_MAX_GRAPH_NODES))
+    max_graph_nodes: int = field(
+        default_factory=lambda: get_app_config().lightrag_config.MAX_GRAPH_NODES
+    )
     """Maximum number of graph nodes to return in knowledge graph queries."""
 
     addon_params: dict[str, Any] = field(
         default_factory=lambda: {
-            "language": str(DEFAULT_SUMMARY_LANGUAGE),
-            "entity_types": list(DEFAULT_ENTITY_TYPES),
+            "language": get_app_config().lightrag_config.SUMMARY_LANGUAGE,
+            "entity_types": get_app_config().lightrag_config.ENTITY_TYPES,
         }
     )
 
