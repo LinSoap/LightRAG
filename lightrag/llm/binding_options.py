@@ -494,16 +494,6 @@ class OpenAILLMOptions(BindingOptions):
 
 if __name__ == "__main__":
     import sys
-    import dotenv
-    # from io import StringIO
-
-    dotenv.load_dotenv(dotenv_path=".env", override=False)
-
-    # env_strstream = StringIO(
-    #     ("OLLAMA_LLM_TEMPERATURE=0.1\nOLLAMA_EMBEDDING_TEMPERATURE=0.2\n")
-    # )
-    # # Load environment variables from .env file
-    # dotenv.load_dotenv(stream=env_strstream)
 
     if len(sys.argv) > 1 and sys.argv[1] == "test":
         # Add arguments for OllamaEmbeddingOptions, OllamaLLMOptions, and OpenAILLMOptions

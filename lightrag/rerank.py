@@ -11,12 +11,8 @@ from tenacity import (
 )
 from .utils import logger
 
-from dotenv import load_dotenv
+from .config_manager import get_app_config
 
-# use the .env that is inside the current folder
-# allows to use different .env file for each lightrag instance
-# the OS environment variables take precedence over the .env file
-load_dotenv(dotenv_path=".env", override=False)
 
 
 @retry(
@@ -194,7 +190,7 @@ async def cohere_rerank(
         List of dictionary of ["index": int, "relevance_score": float]
     """
     if api_key is None:
-        api_key = os.getenv("COHERE_API_KEY") or os.getenv("RERANK_BINDING_API_KEY")
+        api_key = get_app_config().rerank_config.COHERE_API_KEY or get_app_config().rerank_config.RERANK_BINDING_API_KEY
 
     return await generic_rerank_api(
         query=query,
@@ -234,7 +230,7 @@ async def jina_rerank(
         List of dictionary of ["index": int, "relevance_score": float]
     """
     if api_key is None:
-        api_key = os.getenv("JINA_API_KEY") or os.getenv("RERANK_BINDING_API_KEY")
+        api_key = get_app_config().rerank_config.JINA_API_KEY or get_app_config().rerank_config.RERANK_BINDING_API_KEY
 
     return await generic_rerank_api(
         query=query,
@@ -274,7 +270,7 @@ async def ali_rerank(
         List of dictionary of ["index": int, "relevance_score": float]
     """
     if api_key is None:
-        api_key = os.getenv("DASHSCOPE_API_KEY") or os.getenv("RERANK_BINDING_API_KEY")
+        api_key = get_app_config().rerank_config.DASHSCOPE_API_KEY or get_app_config().rerank_config.RERANK_BINDING_API_KEY
 
     return await generic_rerank_api(
         query=query,

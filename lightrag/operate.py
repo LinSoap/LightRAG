@@ -53,12 +53,6 @@ from .constants import (
 )
 from .kg.shared_storage import get_storage_keyed_lock
 import time
-from dotenv import load_dotenv
-
-# use the .env that is inside the current folder
-# allows to use different .env file for each lightrag instance
-# the OS environment variables take precedence over the .env file
-load_dotenv(dotenv_path=".env", override=False)
 
 
 def chunking_by_token_size(

@@ -61,6 +61,7 @@ class LightRAGConfig(BaseModel):
     HISTORY_TURNS: int = 0
     OLLAMA_EMULATING_MODEL_NAME: str = "lightrag"
     OLLAMA_EMULATING_MODEL_TAG: str = "latest"
+    VERBOSE: str = "false"
 
 
 class LLMConfig(BaseModel):
@@ -93,6 +94,9 @@ class RerankConfig(BaseModel):
     RERANK_MODEL: Optional[str] = None
     RERANK_BINDING_HOST: Optional[str] = None
     RERANK_BINDING_API_KEY: Optional[str] = None
+    COHERE_API_KEY: Optional[str] = None
+    JINA_API_KEY: Optional[str] = None
+    DASHSCOPE_API_KEY: Optional[str] = None
     MIN_RERANK_SCORE: float = 0.6
 
 

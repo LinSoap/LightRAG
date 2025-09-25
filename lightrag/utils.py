@@ -16,7 +16,7 @@ from functools import wraps
 from hashlib import md5
 from typing import Any, Protocol, Callable, TYPE_CHECKING, List, Optional
 import numpy as np
-from dotenv import load_dotenv
+from lightrag.config_manager import get_app_config
 
 from lightrag.constants import (
     DEFAULT_LOG_MAX_BYTES,
@@ -105,12 +105,8 @@ async def safe_vdb_operation_with_exception(
 if TYPE_CHECKING:
     from lightrag.base import BaseKVStorage, BaseVectorStorage, QueryParam
 
-# use the .env that is inside the current folder
-# allows to use different .env file for each lightrag instance
-# the OS environment variables take precedence over the .env file
-load_dotenv(dotenv_path=".env", override=False)
 
-VERBOSE_DEBUG = os.getenv("VERBOSE", "false").lower() == "true"
+VERBOSE_DEBUG = get_app_config().lightrag_config.VERBOSE.lower() == "true"
 
 
 def verbose_debug(msg: str, *args, **kwargs):
