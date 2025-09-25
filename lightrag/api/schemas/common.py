@@ -1,12 +1,5 @@
-from typing import Optional, TypeVar, Generic, List, Union
+from typing import Any, Dict, Optional, TypeVar, Generic, List, Union
 from pydantic import BaseModel
-
-from lightrag.config_manager import (
-    LLMConfig,
-    EmbeddingConfig,
-    LightRAGConfig,
-)
-
 
 T = TypeVar("T")
 
@@ -22,7 +15,10 @@ class GenericResponse(BaseModel, Generic[T]):
 class TestResponseData(BaseModel):
     """测试接口返回的数据结构。
 
-    `result` 字段可以是 LLM 返回的字符串，也可以是 Embedding 返回的向量列表（List[List[float]])。
+    `result` 字段可以是：
+    - LLM 返回的字符串
+    - Embedding 返回的向量列表（List[List[float]]）
+    - Rerank 返回的重排序结果（List[Dict[str, Any]]）
     """
 
-    result: Union[str, List[List[float]]]
+    result: Union[str, List[List[float]], List[Dict[str, Any]]]
