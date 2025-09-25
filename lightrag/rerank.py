@@ -271,7 +271,6 @@ async def ali_rerank(
     """
     if api_key is None:
         api_key = get_app_config().rerank_config.RERANK_BINDING_API_KEY
-
     return await generic_rerank_api(
         query=query,
         documents=documents,
@@ -284,6 +283,65 @@ async def ali_rerank(
         response_format="aliyun",
         request_format="aliyun",
     )
+
+def get_rerank_func(
+    api_key: Optional[str] = None,
+    model: Optional[str] = None,
+    base_url: Optional[str] = None,
+    extra_body: Optional[Dict[str, Any]] = None,
+) -> Optional[callable]:
+    """
+    Return a rerank callable configured with defaults from app config.
+
+    The returned callable has signature:
+        async def rerank(query: str, documents: List[str], top_n: Optional[int] = None) -> List[Dict[str, Any]]
+
+    If no valid binding is configured, returns None.
+    """
+    allowed_bindings = ["jina", "cohere", "aliyun"]
+
+    app_cfg = get_app_config()
+
+    # Fill defaults from config when not provided
+    if api_key is None:
+        api_key = app_cfg.rerank_config.RERANK_BINDING_API_KEY
+    if base_url is None:
+        base_url = app_cfg.rerank_config.RERANK_BINDING_HOST
+    if model is None:
+        model = app_cfg.rerank_config.RERANK_MODEL
+
+    # Validate model binding
+    if app_cfg.rerank_config.RERANK_BINDING not in allowed_bindings:
+        return None
+
+    # Determine formats
+    model_format = "standard"
+    return_documents = True
+    if app_cfg.rerank_config.RERANK_BINDING == "aliyun" or model == "aliyun":
+        model_format = "aliyun"
+        return_documents = False
+
+    # Build a closure that calls generic_rerank_api with the configured defaults
+    async def rerank_closure(
+        query: str,
+        documents: List[str],
+        top_n: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await generic_rerank_api(
+            query=query,
+            documents=documents,
+            model=model,
+            base_url=base_url,
+            api_key=api_key,
+            top_n=top_n,
+            return_documents=return_documents,
+            extra_body=extra_body,
+            response_format=model_format,
+            request_format=model_format,
+        )
+
+    return rerank_closure
+
 
 
 """Please run this test as a module:

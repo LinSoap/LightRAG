@@ -1,3 +1,4 @@
+import inspect
 import logging
 import os
 import json
@@ -7,6 +8,7 @@ from lightrag.kg.shared_storage import (
     initialize_pipeline_status,
 )
 from lightrag.lightrag import LightRAG
+from lightrag.rerank import get_rerank_func
 from lightrag.types import GPTKeywordExtractionFormat
 from lightrag.utils import EmbeddingFunc
 
@@ -29,6 +31,7 @@ class LightRagManager:
         self.lightrag_config = app_config.lightrag_config
         self.llm_config = app_config.llm_config
         self.embedding_config = app_config.embedding_config
+        self.rerank_config = app_config.rerank_config
 
     def set_config_manager(self, config_manager):
         """设置配置管理器实例"""
@@ -179,14 +182,13 @@ class LightRagManager:
         try:
             # 获取动态配置
             embedding_config = self.embedding_config.model_dump()
-
-            # Generate embedding and LLM functions
-            # Create embedding function with optimized configuration
-            rerank_model_func = None
             embedding_func = EmbeddingFunc(
                 embedding_dim=embedding_config["EMBEDDING_DIM"],
                 func=self.create_optimized_embedding_function(),
             )
+
+            rerank_model_func = get_rerank_func()
+            
 
             llm_func = self._create_llm_model_func(self.llm_config.LLM_BINDING)
 
