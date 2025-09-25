@@ -19,14 +19,6 @@ class GenericResponse(BaseModel, Generic[T]):
     data: Optional[T] = None
 
 
-class AppConfigData(BaseModel):
-    """应用配置数据结构，包含三个子配置。"""
-
-    lightrag_config: LightRAGConfig
-    llm_config: LLMConfig
-    embedding_config: EmbeddingConfig
-
-
 class TestResponseData(BaseModel):
     """测试接口返回的数据结构。
 

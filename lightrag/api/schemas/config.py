@@ -28,16 +28,6 @@ class EmbeddingConfigPayload(BaseModel):
     EMBEDDING_DIM: Optional[int] = Field(None, description="Embedding向量维度")
 
 
-class RerankConfigPayload(BaseModel):
-    """Rerank配置更新请求"""
-
-    COSINE_BETTER_THAN_THRESHOLD: Optional[float] = Field(
-        None, description="余弦相似度更好阈值"
-    )
-    COSINE_THRESHOLD: Optional[float] = Field(None, description="余弦相似度阈值")
-    MAX_BATCH_SIZE: Optional[int] = Field(None, description="最大批处理大小")
-
-
 class TestPayload(BaseModel):
     """配置测试请求"""
 

@@ -1,5 +1,6 @@
 import os
 import pipmaster as pm  # Pipmaster for dynamic library install
+from lightrag.config_manager import get_app_config
 
 # install specific modules
 if not pm.is_installed("aiohttp"):
@@ -81,7 +82,7 @@ async def jina_embed(
         dimensions: The embedding dimensions (default: 2048 for jina-embeddings-v4).
         late_chunking: Whether to use late chunking.
         base_url: Optional base URL for the Jina API.
-        api_key: Optional Jina API key. If None, uses the JINA_API_KEY environment variable.
+        api_key: Optional Jina API key. If None, uses the embedding_config.EMBEDDING_BINDING_API_KEY.
 
     Returns:
         A numpy array of embeddings, one per input text.
@@ -90,16 +91,17 @@ async def jina_embed(
         aiohttp.ClientError: If there is a connection error with the Jina API.
         aiohttp.ClientResponseError: If the Jina API returns an error response.
     """
-    if api_key:
-        os.environ["JINA_API_KEY"] = api_key
+    # Use provided api_key or get from embedding config
+    if not api_key:
+        api_key = get_app_config().embedding_config.EMBEDDING_BINDING_API_KEY
 
-    if "JINA_API_KEY" not in os.environ:
-        raise ValueError("JINA_API_KEY environment variable is required")
+    if not api_key:
+        raise ValueError("JINA_API_KEY is required in embedding_config.EMBEDDING_BINDING_API_KEY")
 
     url = base_url or "https://api.jina.ai/v1/embeddings"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {os.environ['JINA_API_KEY']}",
+        "Authorization": f"Bearer {api_key}",
     }
     data = {
         "model": "jina-embeddings-v4",

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
 from lightrag.config_manager import (
+    AppConfig,
     EmbeddingConfig,
     LLMConfig,
-    LightRAGConfig,
+    RerankConfig,
     get_app_config,
     reload_app_config,
     save_app_config,
@@ -11,13 +12,11 @@ from lightrag.config_manager import (
 from lightrag.lightrag_manager import LightRagManager
 from lightrag.api.schemas.common import (
     GenericResponse,
-    AppConfigData,
     TestResponseData,
 )
 from lightrag.api.schemas.config import (
     LLMConfigPayload,
     EmbeddingConfigPayload,
-    RerankConfigPayload,
     TestPayload,
 )
 import numpy as _np
@@ -29,7 +28,7 @@ router = APIRouter(prefix="/config", tags=["config"])
 def create_config_routes():
     """Create and return config router with routes defined inside to match project style."""
 
-    @router.get("", response_model=GenericResponse[AppConfigData])
+    @router.get("", response_model=GenericResponse[AppConfig])
     async def get_config():
         """
         获取当前应用配置。
@@ -47,10 +46,11 @@ def create_config_routes():
             cfg = get_app_config()
             return GenericResponse(
                 status="success",
-                data=AppConfigData(
+                data=AppConfig(
                     lightrag_config=cfg.lightrag_config,
                     llm_config=cfg.llm_config,
                     embedding_config=cfg.embedding_config,
+                    rerank_config=cfg.rerank_config,
                 ),
             )
         except Exception as e:
@@ -132,22 +132,25 @@ def create_config_routes():
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.post("/rerank", response_model=GenericResponse[LightRAGConfig])
-    async def configure_rerank(payload: RerankConfigPayload):
+    @router.post("/rerank", response_model=GenericResponse[RerankConfig])
+    async def configure_rerank(payload: RerankConfig):
         """
-        更新 rerank 相关的简易配置字段（目前写入 `lightrag_config` 下）。
+        更新 rerank 配置并持久化。
 
-        请求示例： {"COSINE_THRESHOLD": 0.25, "MAX_BATCH_SIZE": 16}
+        请求示例： {"MIN_RERANK_SCORE": 0.5, "ENABLE_RERANK": true}
         """
         try:
             cfg = get_app_config()
-            lr = cfg.lightrag_config
+            rerank = cfg.rerank_config
+
+            # Update rerank config fields
             for k, v in payload.model_dump().items():
-                if v is not None and hasattr(lr, k):
-                    setattr(lr, k, v)
+                if v is not None:
+                    setattr(rerank, k, v)
+
             save_app_config()
             return GenericResponse(
-                status="success", message="Rerank config updated", data=lr.model_dump()
+                status="success", message="Rerank config updated", data=rerank.model_dump()
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
