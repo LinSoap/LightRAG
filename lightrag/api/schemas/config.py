@@ -31,5 +31,6 @@ class EmbeddingConfigPayload(BaseModel):
 class TestPayload(BaseModel):
     """配置测试请求"""
 
-    target: str = Field(default="llm", description="测试目标: llm 或 embedding")
-    message: Optional[str] = Field(default="你好", description="测试消息")
+    target: str = Field(default="llm", description="测试目标: llm, embedding 或 rerank")
+    message: Optional[str | list[str]] = Field(default="你好", description="测试消息")
+    documents: Optional[list[str]] = Field(None, description="测试文档列表（仅用于 rerank 测试）")
