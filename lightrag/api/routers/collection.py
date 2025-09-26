@@ -5,6 +5,7 @@ from lightrag.api.schemas.collection import (
     CollectionsListData,
     CollectionCreateData,
     CollectionDeleteData,
+    CollectionBatchData,
     CollectionItem,
     DocumentItem,
 )
@@ -91,6 +92,62 @@ def create_collection_routes():
             return GenericResponse(
                 status="success",
                 message=f"Collection '{collection_id}' created successfully.",
+                data=data
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get("/batch", response_model=GenericResponse[CollectionBatchData])
+    async def get_collections_batch(collection_ids: list[str] = Query(..., alias="collection_id[]")):
+        """批量获取指定集合信息"""
+        try:
+            rag_manager = LightRagManager()
+            all_collections = await rag_manager.list_collections()
+
+            # 过滤出请求的集合
+            found_collections = []
+            missing_collections = []
+
+            for requested_id in collection_ids:
+                if requested_id in all_collections:
+                    docs_data = all_collections[requested_id]
+                    documents_list = []
+
+                    if isinstance(docs_data, dict):
+                        for doc_id, doc_data in docs_data.items():
+                            documents_list.append(
+                                DocumentItem(
+                                    doc_id=doc_id,
+                                    status=doc_data.get("status", "unknown"),
+                                    chunks_count=doc_data.get("chunks_count", 0),
+                                    chunks_list=doc_data.get("chunks_list", []),
+                                    content_summary=doc_data.get("content_summary"),
+                                    content_length=doc_data.get("content_length"),
+                                    created_at=doc_data.get("created_at"),
+                                    updated_at=doc_data.get("updated_at"),
+                                    file_path=doc_data.get("file_path"),
+                                    track_id=doc_data.get("track_id"),
+                                    metadata=doc_data.get("metadata"),
+                                    error_msg=doc_data.get("error_msg"),
+                                )
+                            )
+
+                    found_collections.append(
+                        CollectionItem(collection_id=requested_id, documents=documents_list)
+                    )
+                else:
+                    missing_collections.append(requested_id)
+
+            data = CollectionBatchData(
+                collections=found_collections,
+                found_count=len(found_collections),
+                requested_count=len(collection_ids),
+                missing_collections=missing_collections
+            )
+
+            return GenericResponse(
+                status="success",
+                message=f"Found {len(found_collections)} out of {len(collection_ids)} requested collections",
                 data=data
             )
         except Exception as e:

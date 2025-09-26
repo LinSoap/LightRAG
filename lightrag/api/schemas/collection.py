@@ -126,6 +126,35 @@ class CollectionCreateData(BaseModel):
         }
 
 
+class CollectionBatchData(BaseModel):
+    """批量获取集合结果数据"""
+    collections: List[CollectionItem] = Field(
+        default_factory=list,
+        description="查询到的集合列表",
+    )
+    found_count: int = Field(0, description="找到的集合数量")
+    requested_count: int = Field(0, description="请求查询的集合数量")
+    missing_collections: List[str] = Field(
+        default_factory=list,
+        description="未找到的集合ID列表"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "collections": [
+                    {
+                        "collection_id": "test_collection",
+                        "documents": []
+                    }
+                ],
+                "found_count": 1,
+                "requested_count": 2,
+                "missing_collections": ["nonexistent_collection"]
+            }
+        }
+
+
 class CollectionDeleteData(BaseModel):
     """集合删除结果数据"""
     collection_id: str = Field(..., description="Deleted collection identifier")
