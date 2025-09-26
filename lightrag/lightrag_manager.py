@@ -41,7 +41,12 @@ class LightRagManager:
     async def list_collections(self):
         working_dir = str(self.lightrag_config.WORKING_DIR)
         if not os.path.exists(working_dir):
-            return []
+            try:
+                os.makedirs(working_dir, exist_ok=True)
+                self.logger.info(f"Created working dir: {working_dir}")
+            except Exception as e:
+                self.logger.error(f"Failed to create working dir {working_dir}: {e}")
+                raise LightRAGError(f"Cannot create working dir {working_dir}: {e}") from e
 
         collections = [
             name
