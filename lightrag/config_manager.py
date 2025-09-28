@@ -12,7 +12,7 @@ class LightRAGConfig(BaseModel):
     Implemented as a pydantic model (JSON-serializable).
     """
 
-    WORKING_DIR: str = Field(default_factory=lambda: str(get_default_storage_dir()+ "/workspace"))
+    WORKING_DIR: str = Field(default_factory=lambda: str(get_default_storage_dir() / "workspace"))
     KV_STORAGE: str = "JsonKVStorage"
     VECTOR_STORAGE: str = "NanoVectorDBStorage"
     GRAPH_STORAGE: str = "NetworkXStorage"
