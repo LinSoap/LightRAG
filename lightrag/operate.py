@@ -261,7 +261,9 @@ async def _summarize_descriptions(
     # Apply higher priority (8) to entity/relation summary tasks
     use_llm_func = partial(use_llm_func, _priority=8)
 
-    language = global_config["addon_params"].get("language", get_app_config().lightrag_config.SUMMARY_LANGUAGE)
+    language = global_config["addon_params"].get(
+        "language", get_app_config().lightrag_config.SUMMARY_LANGUAGE
+    )
 
     summary_length_recommended = global_config["summary_length_recommended"]
 
@@ -1899,7 +1901,9 @@ async def extract_entities(
 
     ordered_chunks = list(chunks.items())
     # add language and example number params to prompt
-    language = global_config["addon_params"].get("language", get_app_config().lightrag_config.SUMMARY_LANGUAGE)
+    language = global_config["addon_params"].get(
+        "language", get_app_config().lightrag_config.SUMMARY_LANGUAGE
+    )
     entity_types = global_config["addon_params"].get(
         "entity_types", get_app_config().lightrag_config.ENTITY_TYPES
     )
@@ -2323,7 +2327,9 @@ async def extract_keywords_only(
     # 2. Build the examples
     examples = "\n".join(PROMPTS["keywords_extraction_examples"])
 
-    language = global_config["addon_params"].get("language", get_app_config().lightrag_config.SUMMARY_LANGUAGE)
+    language = global_config["addon_params"].get(
+        "language", get_app_config().lightrag_config.SUMMARY_LANGUAGE
+    )
 
     # 3. Process conversation history
     # history_context = ""
@@ -2696,7 +2702,9 @@ async def _build_query_context(
     max_total_tokens = getattr(
         query_param,
         "max_total_tokens",
-        text_chunks_db.global_config.get("max_total_tokens", get_app_config().lightrag_config.MAX_TOTAL_TOKENS),
+        text_chunks_db.global_config.get(
+            "max_total_tokens", get_app_config().lightrag_config.MAX_TOTAL_TOKENS
+        ),
     )
 
     # Truncate entities based on complete JSON serialization
@@ -2976,30 +2984,12 @@ async def _build_query_context(
         if chunk_tracking_log:
             logger.info(f"chunks: {' '.join(chunk_tracking_log)}")
 
-    entities_str = json.dumps(entities_context, ensure_ascii=False)
-    relations_str = json.dumps(relations_context, ensure_ascii=False)
-    text_units_str = json.dumps(text_units_context, ensure_ascii=False)
-
-    result = f"""-----Entities(KG)-----
-
-```json
-{entities_str}
-```
-
------Relationships(KG)-----
-
-```json
-{relations_str}
-```
-
------Document Chunks(DC)-----
-
-```json
-{text_units_str}
-```
-
-"""
-    return result
+    payload = {
+        "entities": entities_context,
+        "relations": relations_context,
+        "document_chunks": text_units_context,
+    }
+    return json.loads(json.dumps(payload, ensure_ascii=False))
 
 
 async def _get_node_data(
@@ -3622,7 +3612,9 @@ async def naive_query(
     max_total_tokens = getattr(
         query_param,
         "max_total_tokens",
-        global_config.get("max_total_tokens", get_app_config().lightrag_config.MAX_TOTAL_TOKENS),
+        global_config.get(
+            "max_total_tokens", get_app_config().lightrag_config.MAX_TOTAL_TOKENS
+        ),
     )
 
     # Calculate conversation history tokens

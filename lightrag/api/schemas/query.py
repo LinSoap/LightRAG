@@ -5,14 +5,18 @@ from pydantic import BaseModel, Field, field_validator
 from lightrag.base import QueryParam
 
 
-class QueryData(BaseModel):
-    response: str = Field(description="The generated response")
-    query_mode: str = Field(description="The query mode used")
-    response_type: Optional[str] = Field(description="The response format type")
-    query_time: Optional[float] = Field(description="Query execution time in seconds")
-    sources_count: Optional[int] = Field(description="Number of sources used")
-    conversation_turns: Optional[int] = Field(description="Number of conversation turns considered")
-    timestamp: datetime = Field(description="Query timestamp")
+class QueryResponse(BaseModel):
+    entities: Optional[List[Dict[str, Any]]] = Field(
+        default=None, description="List of retrieved entities"
+    )
+    relations: Optional[List[Dict[str, Any]]] = Field(
+        default=None, description="List of retrieved relationships"
+    )
+    document_chunks: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        alias="document_chunks",
+        description="List of retrieved text chunks",
+    )
 
 
 class QueryRequest(BaseModel):
