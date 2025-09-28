@@ -13,7 +13,8 @@ from lightrag.api.schemas.common import GenericResponse
 from lightrag.path_manager import get_default_storage_dir
 from lightrag.document_manager import DocumentManager
 from lightrag.lightrag_manager import LightRagManager
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from lightrag.utils import logger
 
 
@@ -59,20 +60,21 @@ def create_collection_routes():
                 )
 
             data = CollectionsListData(
-                collections=collections_list,
-                total_collections=len(collections_list)
+                collections=collections_list, total_collections=len(collections_list)
             )
 
             return GenericResponse(
                 status="success",
                 message=f"Found {len(collections_list)} collections",
-                data=data
+                data=data,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.post("", response_model=GenericResponse[CollectionCreateData])
-    async def create_collection(collection_id: str) -> GenericResponse[CollectionCreateData]:
+    async def create_collection(
+        collection_id: str,
+    ) -> GenericResponse[CollectionCreateData]:
         """Create a new collection"""
         try:
             rag_manager = LightRagManager()
@@ -85,22 +87,25 @@ def create_collection_routes():
                 )
 
             data = CollectionCreateData(
-                collection_id=collection_id,
-                created_at=datetime.now().isoformat()
+                collection_id=collection_id, created_at=datetime.now().isoformat()
             )
 
             return GenericResponse(
                 status="success",
                 message=f"Collection '{collection_id}' created successfully.",
-                data=data
+                data=data,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.get("/batch", response_model=GenericResponse[CollectionBatchData])
-    async def get_collections_batch(collection_ids: list[str] = Query(..., alias="collection_id[]")):
-        """批量获取指定集合信息"""
+    class CollectionBatchRequest(BaseModel):
+        collection_ids: list[str]
+
+    @router.post("/batch", response_model=GenericResponse[CollectionBatchData])
+    async def get_collections_batch(request: CollectionBatchRequest):
+        """批量获取指定集合信息（通过 JSON body 提交 collection_ids 列表）"""
         try:
+            collection_ids = request.collection_ids
             rag_manager = LightRagManager()
             all_collections = await rag_manager.list_collections()
 
@@ -133,7 +138,9 @@ def create_collection_routes():
                             )
 
                     found_collections.append(
-                        CollectionItem(collection_id=requested_id, documents=documents_list)
+                        CollectionItem(
+                            collection_id=requested_id, documents=documents_list
+                        )
                     )
                 else:
                     missing_collections.append(requested_id)
@@ -142,13 +149,13 @@ def create_collection_routes():
                 collections=found_collections,
                 found_count=len(found_collections),
                 requested_count=len(collection_ids),
-                missing_collections=missing_collections
+                missing_collections=missing_collections,
             )
 
             return GenericResponse(
                 status="success",
                 message=f"Found {len(found_collections)} out of {len(collection_ids)} requested collections",
-                data=data
+                data=data,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
@@ -156,7 +163,11 @@ def create_collection_routes():
     @router.delete("", response_model=GenericResponse[CollectionDeleteData])
     async def clear_documents(collection_id: str):
         rag = await lightrag_manager.get_rag_instance(collection_id)
-        doc_manager = DocumentManager(input_dir=str(get_default_storage_dir() / "inputs"), workspace=collection_id)
+        if rag is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        doc_manager = DocumentManager(
+            input_dir=str(get_default_storage_dir() / "inputs"), workspace=collection_id
+        )
 
         workspace_dir = rag.working_dir + f"/{collection_id}"
         input_dir = doc_manager.input_dir
@@ -189,14 +200,16 @@ def create_collection_routes():
             data = CollectionDeleteData(
                 collection_id=collection_id,
                 deleted_documents_count=deleted_documents_count,
-                workspace_cleared=workspace_cleared
+                workspace_cleared=workspace_cleared,
             )
 
-            return GenericResponse(
-                status="success",
-                message=message,
-                data=data
-            )
+            return GenericResponse(status="success", message=message, data=data)
+        except HTTPException:
+            # Preserve HTTPException (e.g. 404) raised by underlying calls
+            raise
+        except FileNotFoundError as e:
+            logger.exception("File/directory not found while clearing documents: %s", e)
+            raise HTTPException(status_code=404, detail=str(e))
         except Exception as e:
             logger.exception("Error clearing documents: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
