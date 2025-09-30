@@ -46,7 +46,6 @@ class LightRagManager:
                 self.logger.info(f"Created working dir: {working_dir}")
             except Exception as e:
                 self.logger.error(f"Failed to create working dir {working_dir}: {e}")
-                raise LightRAGError(f"Cannot create working dir {working_dir}: {e}") from e
 
         collections = [
             name
@@ -193,7 +192,6 @@ class LightRagManager:
             )
 
             rerank_model_func = get_rerank_func()
-            
 
             llm_func = self._create_llm_model_func(self.llm_config.LLM_BINDING)
 
@@ -209,8 +207,8 @@ class LightRagManager:
                 chunk_overlap_token_size=self.lightrag_config.CHUNK_OVERLAP_SIZE,
                 llm_model_kwargs={},
                 embedding_func=embedding_func,
-                default_llm_timeout=60,
-                default_embedding_timeout=60,
+                default_llm_timeout=self.llm_config.LLM_TIMEOUT,
+                default_embedding_timeout=self.embedding_config.EMBEDDING_TIMEOUT,
                 kv_storage=self.lightrag_config.KV_STORAGE,
                 graph_storage=self.lightrag_config.GRAPH_STORAGE,
                 vector_storage=self.lightrag_config.VECTOR_STORAGE,
