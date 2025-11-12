@@ -113,6 +113,9 @@ datas = [
     # 包含父utils.py文件
     ('../lightrag/utils.py', 'lightrag/utils.py'),
 
+    # 包含 tiktoken 离线缓存文件（用于离线环境）
+    ('../lightrag/tiktoken_cache', 'lightrag/tiktoken_cache'),
+
     # 包含字体和静态资源（如果存在）
     # ('../lightrag/tools/lightrag_visualizer/assets', 'lightrag/tools/lightrag_visualizer/assets'),
 

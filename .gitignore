@@ -77,3 +77,7 @@ memory-bank/
 # Documentation analysis files (except project intro)
 docs/*.md
 !docs/项目介绍.md
+!docs/离线部署和打包指南.md
+
+# Tiktoken cache (downloaded by scripts, not committed)
+lightrag/tiktoken_cache/
