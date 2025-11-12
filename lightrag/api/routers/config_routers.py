@@ -73,12 +73,15 @@ def create_config_routes():
             "LLM_BINDING": "openai",
             "LLM_MODEL": "gpt-4o-mini",
             "LLM_BINDING_HOST": "https://api.openai.com/v1",
-            "LLM_BINDING_API_KEY": "sk-..."
+            "LLM_BINDING_API_KEY": "sk-...",
+            "LLM_TIMEOUT": 600
         }
 
         响应示例：
 
         {"status": "success", "message": "LLM config updated", "data": {...}}
+
+        注意：更新配置后，所有现有的 RAG 实例将被清除，新的请求会使用新配置创建实例。
         """
 
         try:
@@ -90,8 +93,16 @@ def create_config_routes():
                     setattr(llm, k, v)
             # save
             save_app_config()
+
+            # 清除所有现有的 RAG 实例，以便使用新配置重新创建
+            # 这确保超时等配置立即生效
+            manager = LightRagManager()
+            cleared_count = len(manager.rag_instances)
+            manager.rag_instances.clear()
+
+            message = f"LLM config updated. {cleared_count} RAG instance(s) cleared and will be recreated with new config."
             return GenericResponse(
-                status="success", message="LLM config updated", data=llm.model_dump()
+                status="success", message=message, data=llm.model_dump()
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
@@ -109,12 +120,15 @@ def create_config_routes():
             "EMBEDDING_MODEL": "text-embedding-3-large",
             "EMBEDDING_DIM": 3072,
             "EMBEDDING_BINDING_HOST": "https://api.openai.com/v1",
-            "EMBEDDING_BINDING_API_KEY": "sk-..."
+            "EMBEDDING_BINDING_API_KEY": "sk-...",
+            "EMBEDDING_TIMEOUT": 300
         }
 
         响应示例：
 
         {"status": "success", "message": "Embedding config updated", "data": {...}}
+
+        注意：更新配置后，所有现有的 RAG 实例将被清除，新的请求会使用新配置创建实例。
         """
 
         try:
@@ -124,9 +138,16 @@ def create_config_routes():
                 if v is not None:
                     setattr(emb, k, v)
             save_app_config()
+
+            # 清除所有现有的 RAG 实例，以便使用新配置重新创建
+            manager = LightRagManager()
+            cleared_count = len(manager.rag_instances)
+            manager.rag_instances.clear()
+
+            message = f"Embedding config updated. {cleared_count} RAG instance(s) cleared and will be recreated with new config."
             return GenericResponse(
                 status="success",
-                message="Embedding config updated",
+                message=message,
                 data=emb.model_dump(),
             )
         except Exception as e:
@@ -176,7 +197,9 @@ def create_config_routes():
 
             save_app_config()
             return GenericResponse(
-                status="success", message="Rerank config updated", data=rerank.model_dump()
+                status="success",
+                message="Rerank config updated",
+                data=rerank.model_dump(),
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
@@ -290,16 +313,33 @@ def create_config_routes():
                         detail=f"Unsupported rerank binding for test: {binding}",
                     )
 
-                raw_result = await rerank_func(query=query, documents=documents, top_n=3)
+                raw_result = await rerank_func(
+                    query=query, documents=documents, top_n=3
+                )
 
                 # If rerank returns index-based results, map back to document texts
-                if raw_result and isinstance(raw_result, list) and isinstance(raw_result[0], dict) and "index" in raw_result[0]:
+                if (
+                    raw_result
+                    and isinstance(raw_result, list)
+                    and isinstance(raw_result[0], dict)
+                    and "index" in raw_result[0]
+                ):
                     mapped = []
                     for item in raw_result:
                         idx = item.get("index")
                         score = item.get("relevance_score")
-                        doc_text = documents[idx] if isinstance(idx, int) and 0 <= idx < len(documents) else None
-                        mapped.append({"index": idx, "relevance_score": score, "document": doc_text})
+                        doc_text = (
+                            documents[idx]
+                            if isinstance(idx, int) and 0 <= idx < len(documents)
+                            else None
+                        )
+                        mapped.append(
+                            {
+                                "index": idx,
+                                "relevance_score": score,
+                                "document": doc_text,
+                            }
+                        )
                     result = mapped
                 else:
                     # Legacy format or already full documents

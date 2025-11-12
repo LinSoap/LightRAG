@@ -12,7 +12,9 @@ class LightRAGConfig(BaseModel):
     Implemented as a pydantic model (JSON-serializable).
     """
 
-    WORKING_DIR: str = Field(default_factory=lambda: str(get_default_storage_dir() / "workspace"))
+    WORKING_DIR: str = Field(
+        default_factory=lambda: str(get_default_storage_dir() / "workspace")
+    )
     KV_STORAGE: str = "JsonKVStorage"
     VECTOR_STORAGE: str = "NanoVectorDBStorage"
     GRAPH_STORAGE: str = "NetworkXStorage"
@@ -71,7 +73,7 @@ class LLMConfig(BaseModel):
     LLM_MODEL: Optional[str] = None
     LLM_BINDING_HOST: Optional[str] = None
     LLM_BINDING_API_KEY: Optional[str] = None
-    LLM_TIMEOUT: int = 240
+    LLM_TIMEOUT: int = 2400  # 默认超时 2400 秒（Worker: 4800s, Health Check: 4815s）
 
 
 class EmbeddingConfig(BaseModel):
@@ -85,7 +87,7 @@ class EmbeddingConfig(BaseModel):
     EMBEDDING_BATCH_NUM: int = 10
     EMBEDDING_FUNC_MAX_ASYNC: int = 8
     EMBEDDING_MAX_TOKEN_SIZE: int = 8192
-    EMBEDDING_TIMEOUT: int = 240
+    EMBEDDING_TIMEOUT: int = 600  # 默认超时 600 秒（Embedding 通常较快）
 
 
 class RerankConfig(BaseModel):
