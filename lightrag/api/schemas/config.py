@@ -14,6 +14,9 @@ class LLMConfigPayload(BaseModel):
     LLM_MODEL: Optional[str] = Field(None, description="LLM模型名称")
     LLM_BINDING_HOST: Optional[str] = Field(None, description="LLM服务地址")
     LLM_BINDING_API_KEY: Optional[str] = Field(None, description="LLM API密钥")
+    LLM_TIMEOUT: Optional[int] = Field(
+        None, description="LLM超时时间（秒），影响Worker执行超时=LLM_TIMEOUT*2"
+    )
 
 
 class EmbeddingConfigPayload(BaseModel):
@@ -26,6 +29,9 @@ class EmbeddingConfigPayload(BaseModel):
         None, description="Embedding API密钥"
     )
     EMBEDDING_DIM: Optional[int] = Field(None, description="Embedding向量维度")
+    EMBEDDING_TIMEOUT: Optional[int] = Field(
+        None, description="Embedding超时时间（秒）"
+    )
 
 
 class TestPayload(BaseModel):
@@ -33,4 +39,6 @@ class TestPayload(BaseModel):
 
     target: str = Field(default="llm", description="测试目标: llm, embedding 或 rerank")
     message: Optional[str | list[str]] = Field(default="你好", description="测试消息")
-    documents: Optional[list[str]] = Field(None, description="测试文档列表（仅用于 rerank 测试）")
+    documents: Optional[list[str]] = Field(
+        None, description="测试文档列表（仅用于 rerank 测试）"
+    )
