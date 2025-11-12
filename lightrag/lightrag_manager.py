@@ -101,8 +101,9 @@ class LightRagManager:
             if history_messages is None:
                 history_messages = []
 
-            # Use pre-processed configuration to avoid repeated parsing
-            kwargs["timeout"] = 60
+            # Use configured LLM timeout (OpenAI HTTP client timeout)
+            # This should match the LLM_TIMEOUT config to avoid premature timeouts
+            kwargs["timeout"] = self.llm_config.LLM_TIMEOUT
 
             return await openai_complete_if_cache(
                 self.llm_config.LLM_MODEL,
