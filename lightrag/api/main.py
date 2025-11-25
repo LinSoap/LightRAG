@@ -1,7 +1,10 @@
 import argparse
 import socket
 import logging
+import os
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.middleware.cors import CORSMiddleware
 from lightrag.api.routers.documents import create_document_routers
 from lightrag.api.routers.query import create_query_routes
@@ -10,7 +13,24 @@ from lightrag.api.routers.collection import create_collection_routes
 from lightrag.api.service_manager import service_manager
 from lightrag.api.routers.config_routers import create_config_routes
 
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None)
+
+# Mount static files
+current_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(current_dir, "static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - Swagger UI",
+        oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+        swagger_js_url="/static/swagger-ui-bundle.js",
+        swagger_css_url="/static/swagger-ui.css",
+    )
+
 
 app.add_middleware(
     CORSMiddleware,

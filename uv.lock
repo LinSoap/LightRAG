@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -830,6 +830,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "configparser" },
+    { name = "fastapi" },
     { name = "future" },
     { name = "json-repair" },
     { name = "nano-vectordb" },
@@ -853,6 +854,7 @@ dependencies = [
     { name = "setuptools" },
     { name = "tenacity" },
     { name = "tiktoken" },
+    { name = "uvicorn" },
     { name = "xlsxwriter" },
 ]
 
@@ -910,6 +912,7 @@ requires-dist = [
     { name = "configparser" },
     { name = "configparser", marker = "extra == 'api'" },
     { name = "distro", marker = "extra == 'api'" },
+    { name = "fastapi", specifier = ">=0.116.1" },
     { name = "fastapi", marker = "extra == 'api'" },
     { name = "future" },
     { name = "future", marker = "extra == 'api'" },
@@ -954,6 +957,7 @@ requires-dist = [
     { name = "tenacity", marker = "extra == 'api'" },
     { name = "tiktoken" },
     { name = "tiktoken", marker = "extra == 'api'" },
+    { name = "uvicorn", specifier = ">=0.35.0" },
     { name = "uvicorn", marker = "extra == 'api'" },
     { name = "xlsxwriter", specifier = ">=3.1.0" },
     { name = "xlsxwriter", marker = "extra == 'api'", specifier = ">=3.1.0" },

@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "aiohttp",
     "configparser",
+    "fastapi>=0.116.1",
     "future",
     "json_repair",
     "nano-vectordb",
@@ -43,6 +44,7 @@ dependencies = [
     "setuptools",
     "tenacity",
     "tiktoken",
+    "uvicorn>=0.35.0",
     "xlsxwriter>=3.1.0",
 ]
 
