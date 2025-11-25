@@ -15,6 +15,10 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('scipy')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
+# 显式添加静态文件，确保 Swagger UI 资源被包含
+if os.path.exists('lightrag/api/static'):
+    datas.append(('lightrag/api/static', 'lightrag/api/static'))
+
 # 收集文档处理库
 try:
     tmp_ret = collect_all('docx')

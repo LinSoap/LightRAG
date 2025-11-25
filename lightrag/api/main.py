@@ -2,6 +2,7 @@ import argparse
 import socket
 import logging
 import os
+import sys
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -16,8 +17,23 @@ from lightrag.api.routers.config_routers import create_config_routes
 app = FastAPI(docs_url=None, redoc_url=None)
 
 # Mount static files
-current_dir = os.path.dirname(os.path.abspath(__file__))
-static_dir = os.path.join(current_dir, "static")
+if getattr(sys, 'frozen', False):
+    # PyInstaller mode
+    base_dir = sys._MEIPASS
+    static_dir = os.path.join(base_dir, "lightrag", "api", "static")
+    if not os.path.exists(static_dir):
+        # Fallback to check other possible locations if needed, or log warning
+        print(f"Warning: Static directory not found at {static_dir}, trying root static")
+        static_dir = os.path.join(base_dir, "static")
+else:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    static_dir = os.path.join(current_dir, "static")
+
+if not os.path.exists(static_dir):
+    # Create empty directory to prevent crash if static files are missing
+    print(f"Warning: Static directory {static_dir} does not exist. Creating it to prevent crash.")
+    os.makedirs(static_dir, exist_ok=True)
+
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
