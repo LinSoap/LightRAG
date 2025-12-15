@@ -1,9 +1,9 @@
-import argparse
-import socket
-import logging
 import os
 import sys
-from fastapi import FastAPI
+import socket
+import logging
+import argparse
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +17,7 @@ from lightrag.api.routers.config_routers import create_config_routes
 app = FastAPI(docs_url=None, redoc_url=None)
 
 # Mount static files
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     # PyInstaller mode
     base_dir = sys._MEIPASS
     static_dir = os.path.join(base_dir, "lightrag", "api", "static")
@@ -38,13 +38,13 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/docs", include_in_schema=False)
-async def custom_swagger_ui_html():
+async def custom_swagger_ui_html(request: Request):
     return get_swagger_ui_html(
         openapi_url=app.openapi_url,
         title=app.title + " - Swagger UI",
         oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
-        swagger_js_url="/static/swagger-ui-bundle.js",
-        swagger_css_url="/static/swagger-ui.css",
+        swagger_js_url=request.url_for("static", path="swagger-ui-bundle.js"),
+        swagger_css_url=request.url_for("static", path="swagger-ui.css"),
     )
 
 
@@ -72,20 +72,14 @@ def find_free_port(start_port: int = 9621, max_attempts: int = 100) -> int:
                 return port
             except OSError:
                 continue
-    raise RuntimeError(
-        f"在 {start_port}-{start_port + max_attempts - 1} 范围内无法找到可用端口"
-    )
+    raise RuntimeError(f"在 {start_port}-{start_port + max_attempts - 1} 范围内无法找到可用端口")
 
 
 def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description="LightRAG API Server")
-    parser.add_argument(
-        "--port", type=int, default=0, help="端口号 (默认: 0表示自动选择)"
-    )
-    parser.add_argument(
-        "--host", default="127.0.0.1", help="绑定地址 (默认: 127.0.0.1)"
-    )
+    parser.add_argument("--port", type=int, default=0, help="端口号 (默认: 0表示自动选择)")
+    parser.add_argument("--host", default="127.0.0.1", help="绑定地址 (默认: 127.0.0.1)")
     parser.add_argument("--storage-dir", type=str, help="存储目录路径")
     parser.add_argument("--config", type=str, help="配置文件路径 (config.json)")
     parser.add_argument(

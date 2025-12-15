@@ -118,6 +118,7 @@ datas = [
 
     # 包含字体和静态资源（如果存在）
     # ('../lightrag/tools/lightrag_visualizer/assets', 'lightrag/tools/lightrag_visualizer/assets'),
+    ('../lightrag/api/static', 'lightrag/api/static'),
 
     # 包含配置文件（可选）
     # ('../pyproject.toml', 'pyproject.toml'),
