@@ -104,6 +104,7 @@ class LightRagManager:
             # Use configured LLM timeout (OpenAI HTTP client timeout)
             # This should match the LLM_TIMEOUT config to avoid premature timeouts
             kwargs["timeout"] = self.llm_config.LLM_TIMEOUT
+            kwargs["stream"] = True
 
             return await openai_complete_if_cache(
                 self.llm_config.LLM_MODEL,
@@ -155,6 +156,7 @@ class LightRagManager:
                         embed_model=embedding_config["EMBEDDING_MODEL"],
                         host=embedding_config["EMBEDDING_BINDING_HOST"],
                         api_key=embedding_config["EMBEDDING_BINDING_API_KEY"],
+                        timeout=embedding_config["EMBEDDING_TIMEOUT"],
                     )
                 elif binding == "jina":
                     from lightrag.llm.jina import jina_embed
@@ -164,6 +166,7 @@ class LightRagManager:
                         dimensions=embedding_config["EMBEDDING_DIM"],
                         base_url=embedding_config["EMBEDDING_BINDING_HOST"],
                         api_key=embedding_config["EMBEDDING_BINDING_API_KEY"],
+                        timeout=embedding_config["EMBEDDING_TIMEOUT"],
                     )
                 else:  # openai and compatible
                     from lightrag.llm.openai import openai_embed
@@ -173,6 +176,9 @@ class LightRagManager:
                         model=embedding_config["EMBEDDING_MODEL"],
                         base_url=embedding_config["EMBEDDING_BINDING_HOST"],
                         api_key=embedding_config["EMBEDDING_BINDING_API_KEY"],
+                        client_configs={
+                            "timeout": embedding_config["EMBEDDING_TIMEOUT"]
+                        },
                     )
             except ImportError as e:
                 raise Exception(f"Failed to import {binding} embedding: {e}")

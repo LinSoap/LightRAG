@@ -20,8 +20,10 @@ from tenacity import (
 from lightrag.utils import wrap_embedding_func_with_attrs, logger
 
 
-async def fetch_data(url, headers, data):
-    async with aiohttp.ClientSession() as session:
+async def fetch_data(url, headers, data, timeout=None):
+    async with aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=timeout)
+    ) as session:
         async with session.post(url, headers=headers, json=data) as response:
             if response.status != 200:
                 error_text = await response.text()
@@ -74,6 +76,7 @@ async def jina_embed(
     late_chunking: bool = False,
     base_url: str = None,
     api_key: str = None,
+    timeout: int = None,
 ) -> np.ndarray:
     """Generate embeddings for a list of texts using Jina AI's API.
 
@@ -83,6 +86,7 @@ async def jina_embed(
         late_chunking: Whether to use late chunking.
         base_url: Optional base URL for the Jina API.
         api_key: Optional Jina API key. If None, uses the embedding_config.EMBEDDING_BINDING_API_KEY.
+        timeout: Optional timeout in seconds.
 
     Returns:
         A numpy array of embeddings, one per input text.
@@ -96,7 +100,9 @@ async def jina_embed(
         api_key = get_app_config().embedding_config.EMBEDDING_BINDING_API_KEY
 
     if not api_key:
-        raise ValueError("JINA_API_KEY is required in embedding_config.EMBEDDING_BINDING_API_KEY")
+        raise ValueError(
+            "JINA_API_KEY is required in embedding_config.EMBEDDING_BINDING_API_KEY"
+        )
 
     url = base_url or "https://api.jina.ai/v1/embeddings"
     headers = {
@@ -120,7 +126,7 @@ async def jina_embed(
     )
 
     try:
-        data_list = await fetch_data(url, headers, data)
+        data_list = await fetch_data(url, headers, data, timeout=timeout)
 
         if not data_list:
             logger.error("Jina API returned empty data list")

@@ -14,6 +14,7 @@ import pipmaster as pm  # Pipmaster for dynamic library install
 if not pm.is_installed("openai"):
     pm.install("openai")
 
+import json
 from openai import (
     AsyncOpenAI,
     APIConnectionError,
@@ -37,7 +38,6 @@ from lightrag.api import __api_version__
 import numpy as np
 import base64
 from typing import Any, Union
-
 
 
 class InvalidResponseError(Exception):
@@ -198,6 +198,14 @@ async def openai_complete_if_cache(
     except APITimeoutError as e:
         logger.error(f"OpenAI API Timeout Error: {e}")
         await openai_async_client.close()  # Ensure client is closed
+        raise
+    except json.JSONDecodeError as e:
+        logger.error(
+            f"OpenAI API JSON Decode Error: {e}\n"
+            f"This usually means the API returned an invalid JSON response (e.g. HTML error page or SSE stream without stream=True).\n"
+            f"Model: {model}\nParams: {kwargs}"
+        )
+        await openai_async_client.close()
         raise
     except Exception as e:
         logger.error(
