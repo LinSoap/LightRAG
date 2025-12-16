@@ -14,6 +14,7 @@ from lightrag.api.schemas.document import (
     PipelineStatusData,
     TrackStatusData,
     DocumentDeletionData,
+    RetryDocumentData,
 )
 from lightrag.api.schemas.common import GenericResponse
 from lightrag.api.utils.background import (
@@ -91,13 +92,13 @@ def create_document_routers() -> APIRouter:
             data = DocumentsListData(
                 documents=doc_list,
                 total_documents=len(doc_list),
-                collection_id=collection_id
+                collection_id=collection_id,
             )
 
             return GenericResponse(
                 status="success",
                 message=f"Found {len(doc_list)} documents in collection '{collection_id}'",
-                data=data
+                data=data,
             )
 
         except HTTPException as e:
@@ -120,15 +121,17 @@ def create_document_routers() -> APIRouter:
 
             # Convert chunks to our data model
             chunks = []
-            for i, chunk in enumerate(chunks_raw[offset:offset + limit]):
-                chunk_data = chunk if isinstance(chunk, dict) else {"content": str(chunk)}
+            for i, chunk in enumerate(chunks_raw[offset : offset + limit]):
+                chunk_data = (
+                    chunk if isinstance(chunk, dict) else {"content": str(chunk)}
+                )
                 chunks.append(
                     DocumentChunk(
                         id=chunk_data.get("id", f"{doc_id}_chunk_{i}"),
                         content=chunk_data.get("content", ""),
                         document_id=doc_id,
                         chunk_index=offset + i,
-                        metadata=chunk_data.get("metadata", {})
+                        metadata=chunk_data.get("metadata", {}),
                     )
                 )
 
@@ -137,13 +140,13 @@ def create_document_routers() -> APIRouter:
                 chunks=chunks,
                 total_chunks=len(chunks_raw),
                 limit=limit,
-                offset=offset
+                offset=offset,
             )
 
             return GenericResponse(
                 status="success",
                 message=f"Retrieved {len(chunks)} chunks for document '{doc_id}'",
-                data=data
+                data=data,
             )
         except HTTPException as e:
             raise e
@@ -159,7 +162,10 @@ def create_document_routers() -> APIRouter:
     ) -> GenericResponse[DocumentUploadData]:
         try:
             # Sanitize filename to prevent Path Traversal attacks
-            doc_manager = DocumentManager(input_dir=str(get_default_storage_dir() / "inputs"), workspace=collection_id)
+            doc_manager = DocumentManager(
+                input_dir=str(get_default_storage_dir() / "inputs"),
+                workspace=collection_id,
+            )
 
             rag = await lightrag_manager.create_lightrag_instance(collection_id)
 
@@ -180,12 +186,12 @@ def create_document_routers() -> APIRouter:
                     message=f"File '{safe_filename}' already exists in the input directory.",
                     track_id="",
                     processing_started=False,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 )
                 return GenericResponse(
                     status="success",
                     message="File duplicate check completed",
-                    data=data
+                    data=data,
                 )
 
             # Get file size
@@ -204,18 +210,18 @@ def create_document_routers() -> APIRouter:
             data = DocumentUploadData(
                 filename=safe_filename,
                 file_size=file_size,
-                file_type=safe_filename.split('.')[-1] if '.' in safe_filename else None,
+                file_type=(
+                    safe_filename.split(".")[-1] if "." in safe_filename else None
+                ),
                 upload_status="success",
                 message=f"File '{safe_filename}' uploaded successfully. Processing will continue in background.",
                 track_id=track_id,
                 processing_started=True,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
             return GenericResponse(
-                status="success",
-                message="File uploaded successfully",
-                data=data
+                status="success", message="File uploaded successfully", data=data
             )
 
         except Exception as e:
@@ -226,7 +232,9 @@ def create_document_routers() -> APIRouter:
         "/pipeline_status",
         response_model=GenericResponse[PipelineStatusData],
     )
-    async def get_pipeline_status(collection_id: str) -> GenericResponse[PipelineStatusData]:
+    async def get_pipeline_status(
+        collection_id: str,
+    ) -> GenericResponse[PipelineStatusData]:
         """
         Get the current status of the document indexing pipeline.
 
@@ -322,13 +330,13 @@ def create_document_routers() -> APIRouter:
                 latest_message=status_dict.get("latest_message", ""),
                 history_messages=status_dict.get("history_messages"),
                 update_status=status_dict.get("update_status"),
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
             return GenericResponse(
                 status="success",
                 message="Pipeline status retrieved successfully",
-                data=data
+                data=data,
             )
         except Exception as e:
             logger.error(f"Error getting pipeline status: {str(e)}")
@@ -404,13 +412,13 @@ def create_document_routers() -> APIRouter:
                 documents=documents,
                 total_count=len(documents),
                 status_summary=status_summary,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
             return GenericResponse(
                 status="success",
                 message=f"Retrieved status for {len(documents)} documents with track_id '{track_id}'",
-                data=data
+                data=data,
             )
 
         except HTTPException:
@@ -455,7 +463,9 @@ def create_document_routers() -> APIRouter:
         """
         doc_ids = delete_request.doc_ids
         rag = await lightrag_manager.get_rag_instance(collection_id)
-        doc_manager = DocumentManager(input_dir=str(get_default_storage_dir() / "inputs"), workspace=collection_id)
+        doc_manager = DocumentManager(
+            input_dir=str(get_default_storage_dir() / "inputs"), workspace=collection_id
+        )
 
         # The rag object is initialized from the server startup args,
         # so we can access its properties here.
@@ -466,12 +476,12 @@ def create_document_routers() -> APIRouter:
                 message="Operation not allowed when LLM cache for entity extraction is disabled.",
                 affected_documents=doc_ids,
                 files_to_delete=delete_request.delete_file,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
             return GenericResponse(
                 status="success",
                 message="Document deletion permission check completed",
-                data=data
+                data=data,
             )
 
         try:
@@ -487,12 +497,10 @@ def create_document_routers() -> APIRouter:
                     message="Cannot delete documents while pipeline is busy",
                     affected_documents=doc_ids,
                     files_to_delete=delete_request.delete_file,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 )
                 return GenericResponse(
-                    status="success",
-                    message="Pipeline busy check completed",
-                    data=data
+                    status="success", message="Pipeline busy check completed", data=data
                 )
 
             # Add deletion task to background tasks
@@ -510,13 +518,11 @@ def create_document_routers() -> APIRouter:
                 message=f"Document deletion for {len(doc_ids)} documents has been initiated. Processing will continue in background.",
                 affected_documents=doc_ids,
                 files_to_delete=delete_request.delete_file,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
             return GenericResponse(
-                status="success",
-                message="Document deletion initiated",
-                data=data
+                status="success", message="Document deletion initiated", data=data
             )
 
         except Exception as e:
@@ -524,5 +530,58 @@ def create_document_routers() -> APIRouter:
             logger.error(error_msg)
             logger.error(traceback.format_exc())
             raise HTTPException(status_code=500, detail=error_msg)
+
+    @router.post("/retry", response_model=GenericResponse[RetryDocumentData])
+    async def retry_documents(
+        collection_id: str,
+        background_tasks: BackgroundTasks,
+    ) -> GenericResponse[RetryDocumentData]:
+        """
+        Retry processing for failed or stuck documents.
+
+        This endpoint triggers the document processing pipeline, which automatically
+        picks up documents with 'failed', 'processing' (stuck), and 'pending' status.
+        Useful when the server crashed during processing or tasks failed.
+        """
+        try:
+            rag = await lightrag_manager.get_rag_instance(collection_id)
+            if rag is None:
+                raise HTTPException(
+                    status_code=404, detail=f"Collection '{collection_id}' not found"
+                )
+
+            from lightrag.kg.shared_storage import get_namespace_data
+
+            pipeline_status = await get_namespace_data("pipeline_status")
+
+            if pipeline_status.get("busy", False):
+                data = RetryDocumentData(
+                    status="busy",
+                    message="Pipeline is currently busy. Please try again later.",
+                    timestamp=datetime.now(),
+                )
+                return GenericResponse(
+                    status="success", message="Pipeline busy check completed", data=data
+                )
+
+            # Trigger the pipeline processing in background
+            # apipeline_process_enqueue_documents automatically picks up FAILED and PROCESSING docs
+            background_tasks.add_task(rag.apipeline_process_enqueue_documents)
+
+            data = RetryDocumentData(
+                status="started",
+                message="Retry process initiated for pending/failed/stuck documents.",
+                timestamp=datetime.now(),
+            )
+
+            return GenericResponse(
+                status="success", message="Retry initiated", data=data
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception("Error retrying documents: %s", e)
+            raise HTTPException(status_code=500, detail=str(e))
 
     return router

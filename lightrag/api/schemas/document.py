@@ -118,8 +118,14 @@ class TrackStatusData(BaseModel):
 
 class DocumentDeletionData(BaseModel):
     operation_id: str
-    status: Literal["deletion_started", "busy", "not_allowed"]
+    status: str
     message: str
     affected_documents: List[str]
     files_to_delete: bool
+    timestamp: datetime
+
+
+class RetryDocumentData(BaseModel):
+    status: str
+    message: str
     timestamp: datetime
