@@ -2361,6 +2361,12 @@ async def extract_keywords_only(
 
     result = await use_model_func(kw_prompt, keyword_extraction=True)
 
+    if hasattr(result, "__aiter__"):
+        async_res = ""
+        async for chunk in result:
+            async_res += chunk
+        result = async_res
+
     # 6. Parse out JSON from the LLM response
     result = remove_think_tags(result)
     try:
