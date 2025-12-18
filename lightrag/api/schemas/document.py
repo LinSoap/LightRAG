@@ -93,6 +93,28 @@ class DocumentUploadData(BaseModel):
     timestamp: datetime
 
 
+class BatchUploadItem(BaseModel):
+    filename: str
+    file_size: Optional[int] = None
+    file_type: Optional[str] = None
+    upload_status: Literal["success", "duplicated", "failure"] = "success"
+    message: str
+    track_id: Optional[str] = None  # 个体文件的track_id，可选
+
+
+class BatchUploadData(BaseModel):
+    batch_track_id: str  # 整个批次的统一track_id
+    total_files: int
+    successful_uploads: int
+    failed_uploads: int
+    duplicate_files: int
+    files: List[BatchUploadItem]
+    batch_status: Literal["success", "partial_success", "failure"]
+    message: str
+    processing_started: bool
+    timestamp: datetime
+
+
 class PipelineStatusData(BaseModel):
     autoscanned: bool
     busy: bool
