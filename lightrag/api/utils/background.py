@@ -222,3 +222,50 @@ async def pipeline_index_file(rag: LightRAG, file_path: Path, track_id: str = No
 
     except Exception as e:
         logger.exception("Error indexing file %s: %s", file_path.name, e)
+
+
+async def pipeline_index_files_batch(rag: LightRAG, file_paths: List[Path], batch_track_id: str):
+    """批量索引文件，避免pipeline竞争
+
+    Args:
+        rag: LightRAG instance
+        file_paths: List of file paths to index
+        batch_track_id: Batch tracking ID
+    """
+    from lightrag.kg.shared_storage import get_namespace_data, get_pipeline_status_lock
+
+    pipeline_status = await get_namespace_data("pipeline_status")
+    pipeline_status_lock = get_pipeline_status_lock()
+
+    successful_files = []
+    failed_files = []
+
+    try:
+        # 第一步：将所有文件加入队列
+        for file_path in file_paths:
+            try:
+                success, _ = await pipeline_enqueue_file(rag, file_path, batch_track_id)
+                if success:
+                    successful_files.append(file_path)
+                    logger.info(f"Successfully enqueued file: {file_path.name}")
+                else:
+                    failed_files.append(file_path)
+                    logger.error(f"Failed to enqueue file: {file_path.name}")
+            except Exception as e:
+                failed_files.append(file_path)
+                logger.exception("Error enqueuing file %s: %s", file_path.name, e)
+
+        # 第二步：一次性启动pipeline处理
+        if successful_files:
+            try:
+                # Let apipeline_process_enqueue_documents handle status and locking
+                await rag.apipeline_process_enqueue_documents()
+                logger.info(f"Batch processing initiated for {len(successful_files)} files")
+
+            except Exception as e:
+                logger.exception("Error during batch pipeline processing: %s", e)
+
+        logger.info(f"Batch indexing completed: {len(successful_files)} successful, {len(failed_files)} failed")
+
+    except Exception as e:
+        logger.exception("Error during batch file indexing: %s", e)

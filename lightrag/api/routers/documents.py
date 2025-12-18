@@ -11,6 +11,8 @@ from lightrag.api.schemas.document import (
     DocumentChunk,
     DocumentChunksData,
     DocumentUploadData,
+    BatchUploadData,
+    BatchUploadItem,
     PipelineStatusData,
     TrackStatusData,
     DocumentDeletionData,
@@ -20,6 +22,7 @@ from lightrag.api.schemas.common import GenericResponse
 from lightrag.api.utils.background import (
     background_delete_documents,
     pipeline_index_file,
+    pipeline_index_files_batch,
 )
 from lightrag.api.utils.file import sanitize_filename
 from lightrag.base import DocProcessingStatus, DocStatus
@@ -226,6 +229,152 @@ def create_document_routers() -> APIRouter:
 
         except Exception as e:
             logger.exception("Error uploading file: %s", e)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.post("/upload_batch", response_model=GenericResponse[BatchUploadData])
+    async def upload_files_batch(
+        collection_id: str,
+        background_tasks: BackgroundTasks,
+        files: List[UploadFile] = File(...),
+    ) -> GenericResponse[BatchUploadData]:
+        """批量上传文件到指定collection"""
+
+        if not files:
+            raise HTTPException(status_code=400, detail="No files provided for upload")
+
+        # 限制批次大小防止系统过载
+        MAX_BATCH_SIZE = 50
+        if len(files) > MAX_BATCH_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Batch size too large. Maximum {MAX_BATCH_SIZE} files per batch"
+            )
+
+        try:
+            # 生成统一的批次track_id
+            batch_track_id = generate_track_id("batch")
+
+            # 初始化统计
+            uploaded_files = []
+            successful_count = 0
+            failed_count = 0
+            duplicate_count = 0
+
+            # 获取RAG实例（只需要一次）
+            doc_manager = DocumentManager(
+                input_dir=str(get_default_storage_dir() / "inputs"),
+                workspace=collection_id
+            )
+            rag = await lightrag_manager.create_lightrag_instance(collection_id)
+
+            if rag is None:
+                raise HTTPException(status_code=500, detail="Failed to create RAG instance")
+
+            # 第一步：处理文件上传，收集成功的文件路径
+            successful_file_paths = []
+
+            # 处理每个文件
+            for file in files:
+                try:
+                    # 验证文件名
+                    safe_filename = sanitize_filename(file.filename, doc_manager.input_dir)
+
+                    # 检查文件类型支持
+                    if not doc_manager.is_supported_file(safe_filename):
+                        uploaded_files.append(BatchUploadItem(
+                            filename=safe_filename,
+                            upload_status="failure",
+                            message=f"Unsupported file type: {safe_filename.split('.')[-1] if '.' in safe_filename else 'unknown'}"
+                        ))
+                        failed_count += 1
+                        continue
+
+                    file_path = doc_manager.input_dir / safe_filename
+
+                    # 检查文件是否已存在
+                    if file_path.exists():
+                        uploaded_files.append(BatchUploadItem(
+                            filename=safe_filename,
+                            upload_status="duplicated",
+                            message=f"File '{safe_filename}' already exists"
+                        ))
+                        duplicate_count += 1
+                        continue
+
+                    # 获取文件大小
+                    file.file.seek(0, 2)
+                    file_size = file.file.tell()
+                    file.file.seek(0)
+
+                    # 保存文件
+                    with open(file_path, "wb") as buffer:
+                        shutil.copyfileobj(file.file, buffer)
+
+                    # 添加到成功文件列表，等待批量处理
+                    successful_file_paths.append(file_path)
+
+                    uploaded_files.append(BatchUploadItem(
+                        filename=safe_filename,
+                        file_size=file_size,
+                        file_type=safe_filename.split('.')[-1] if '.' in safe_filename else None,
+                        upload_status="success",
+                        message=f"File '{safe_filename}' uploaded successfully"
+                    ))
+                    successful_count += 1
+
+                except Exception as file_error:
+                    logger.exception("Error processing file %s: %s", file.filename, file_error)
+                    uploaded_files.append(BatchUploadItem(
+                        filename=file.filename or "unknown",
+                        upload_status="failure",
+                        message=f"Upload failed: {str(file_error)}"
+                    ))
+                    failed_count += 1
+
+            # 第二步：如果成功上传了文件，启动批量后台处理
+            if successful_file_paths:
+                background_tasks.add_task(
+                    pipeline_index_files_batch,
+                    rag,
+                    successful_file_paths,
+                    batch_track_id
+                )
+
+            # 确定批次状态
+            if failed_count == 0:
+                batch_status = "success"
+                message = f"All {successful_count} files uploaded successfully"
+            elif successful_count == 0:
+                batch_status = "failure"
+                message = f"All {failed_count} files failed to upload"
+            else:
+                batch_status = "partial_success"
+                message = f"{successful_count} succeeded, {failed_count} failed, {duplicate_count} duplicates"
+
+            # 构建响应数据
+            data = BatchUploadData(
+                batch_track_id=batch_track_id,
+                total_files=len(files),
+                successful_uploads=successful_count,
+                failed_uploads=failed_count,
+                duplicate_files=duplicate_count,
+                files=uploaded_files,
+                batch_status=batch_status,
+                message=message,
+                processing_started=successful_count > 0,
+                timestamp=datetime.now()
+            )
+
+            return GenericResponse(
+                status="success",
+                message=f"Batch upload completed: {message}",
+                data=data
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception("Error in batch upload: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.get(
