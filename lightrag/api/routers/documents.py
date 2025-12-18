@@ -277,7 +277,7 @@ def create_document_routers() -> APIRouter:
             for file in files:
                 try:
                     # 验证文件名
-                    safe_filename = sanitize_filename(file.filename, doc_manager.input_dir)
+                    safe_filename = sanitize_filename(file.filename or "", doc_manager.input_dir)
 
                     # 检查文件类型支持
                     if not doc_manager.is_supported_file(safe_filename):

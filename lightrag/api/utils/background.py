@@ -61,24 +61,16 @@ async def background_delete_documents(
             file_path = "#"
             try:
                 result = await rag.adelete_by_doc_id(doc_id)
-                file_path = (
-                    getattr(result, "file_path", "-") if "result" in locals() else "-"
-                )
+                file_path = getattr(result, "file_path", "-") if "result" in locals() else "-"
                 if result.status == "success":
                     successful_deletions.append(doc_id)
-                    success_msg = (
-                        f"Document deleted {i}/{total_docs}: {doc_id}[{file_path}]"
-                    )
+                    success_msg = f"Document deleted {i}/{total_docs}: {doc_id}[{file_path}]"
                     logger.info(success_msg)
                     async with pipeline_status_lock:
                         pipeline_status["history_messages"].append(success_msg)
 
                     # Handle file deletion if requested and file_path is available
-                    if (
-                        delete_file
-                        and result.file_path
-                        and result.file_path != "unknown_source"
-                    ):
+                    if delete_file and result.file_path and result.file_path != "unknown_source":
                         try:
                             deleted_files = []
                             # check and delete files from input_dir directory
@@ -90,22 +82,16 @@ async def background_delete_documents(
                                     file_delete_msg = f"Successfully deleted input_dir file: {result.file_path}"
                                     logger.info(file_delete_msg)
                                     async with pipeline_status_lock:
-                                        pipeline_status["latest_message"] = (
-                                            file_delete_msg
-                                        )
-                                        pipeline_status["history_messages"].append(
-                                            file_delete_msg
-                                        )
+                                        pipeline_status["latest_message"] = file_delete_msg
+                                        pipeline_status["history_messages"].append(file_delete_msg)
                                 except Exception as file_error:
-                                    file_error_msg = f"Failed to delete input_dir file {result.file_path}: {str(file_error)}"
+                                    file_error_msg = (
+                                        f"Failed to delete input_dir file {result.file_path}: {str(file_error)}"
+                                    )
                                     logger.debug(file_error_msg)
                                     async with pipeline_status_lock:
-                                        pipeline_status["latest_message"] = (
-                                            file_error_msg
-                                        )
-                                        pipeline_status["history_messages"].append(
-                                            file_error_msg
-                                        )
+                                        pipeline_status["latest_message"] = file_error_msg
+                                        pipeline_status["history_messages"].append(file_error_msg)
 
                             # Also check and delete files from __enqueued__ directory
                             enqueued_dir = doc_manager.input_dir / "__enqueued__"
@@ -115,47 +101,33 @@ async def background_delete_documents(
                                 extension = Path(result.file_path).suffix
 
                                 # Search for exact match and files with numeric suffixes
-                                for enqueued_file in enqueued_dir.glob(
-                                    f"{base_name}*{extension}"
-                                ):
+                                for enqueued_file in enqueued_dir.glob(f"{base_name}*{extension}"):
                                     try:
                                         enqueued_file.unlink()
                                         deleted_files.append(enqueued_file.name)
-                                        logger.info(
-                                            f"Successfully deleted enqueued file: {enqueued_file.name}"
-                                        )
+                                        logger.info(f"Successfully deleted enqueued file: {enqueued_file.name}")
                                     except Exception as enqueued_error:
                                         file_error_msg = f"Failed to delete enqueued file {enqueued_file.name}: {str(enqueued_error)}"
                                         logger.debug(file_error_msg)
                                         async with pipeline_status_lock:
-                                            pipeline_status["latest_message"] = (
-                                                file_error_msg
-                                            )
-                                            pipeline_status["history_messages"].append(
-                                                file_error_msg
-                                            )
+                                            pipeline_status["latest_message"] = file_error_msg
+                                            pipeline_status["history_messages"].append(file_error_msg)
 
                             if deleted_files == []:
                                 file_error_msg = f"File deletion skipped, missing file: {result.file_path}"
                                 logger.warning(file_error_msg)
                                 async with pipeline_status_lock:
                                     pipeline_status["latest_message"] = file_error_msg
-                                    pipeline_status["history_messages"].append(
-                                        file_error_msg
-                                    )
+                                    pipeline_status["history_messages"].append(file_error_msg)
 
                         except Exception as file_error:
                             file_error_msg = f"Failed to delete file {result.file_path}: {str(file_error)}"
                             logger.error(file_error_msg)
                             async with pipeline_status_lock:
                                 pipeline_status["latest_message"] = file_error_msg
-                                pipeline_status["history_messages"].append(
-                                    file_error_msg
-                                )
+                                pipeline_status["history_messages"].append(file_error_msg)
                     elif delete_file:
-                        no_file_msg = (
-                            f"File deletion skipped, missing file path: {doc_id}"
-                        )
+                        no_file_msg = f"File deletion skipped, missing file path: {doc_id}"
                         logger.warning(no_file_msg)
                         async with pipeline_status_lock:
                             pipeline_status["latest_message"] = no_file_msg
@@ -187,7 +159,9 @@ async def background_delete_documents(
         # Final summary and check for pending requests
         async with pipeline_status_lock:
             pipeline_status["busy"] = False
-            completion_msg = f"Deletion completed: {len(successful_deletions)} successful, {len(failed_deletions)} failed"
+            completion_msg = (
+                f"Deletion completed: {len(successful_deletions)} successful, {len(failed_deletions)} failed"
+            )
             pipeline_status["latest_message"] = completion_msg
             pipeline_status["history_messages"].append(completion_msg)
 
@@ -197,9 +171,7 @@ async def background_delete_documents(
         # If there are pending requests, start document processing pipeline
         if has_pending_request:
             try:
-                logger.info(
-                    "Processing pending document indexing requests after deletion"
-                )
+                logger.info("Processing pending document indexing requests after deletion")
                 await rag.apipeline_process_enqueue_documents()
             except Exception as e:
                 logger.error(f"Error processing pending documents after deletion: {e}")
@@ -214,9 +186,7 @@ async def pipeline_index_file(rag: LightRAG, file_path: Path, track_id: str = No
         track_id: Optional tracking ID
     """
     try:
-        success, returned_track_id = await pipeline_enqueue_file(
-            rag, file_path, track_id
-        )
+        success, returned_track_id = await pipeline_enqueue_file(rag, file_path, track_id)
         if success:
             await rag.apipeline_process_enqueue_documents()
 
@@ -232,10 +202,10 @@ async def pipeline_index_files_batch(rag: LightRAG, file_paths: List[Path], batc
         file_paths: List of file paths to index
         batch_track_id: Batch tracking ID
     """
-    from lightrag.kg.shared_storage import get_namespace_data, get_pipeline_status_lock
+    # from lightrag.kg.shared_storage import get_namespace_data, get_pipeline_status_lock
 
-    pipeline_status = await get_namespace_data("pipeline_status")
-    pipeline_status_lock = get_pipeline_status_lock()
+    # pipeline_status = await get_namespace_data("pipeline_status")
+    # pipeline_status_lock = get_pipeline_status_lock()
 
     successful_files = []
     failed_files = []
